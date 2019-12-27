@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+//	"bytes"
 	"flag"
 	"github.com/jn0/go-log"
 	"golang.org/x/crypto/ssh"
@@ -60,13 +60,21 @@ func main() {
 	}
 	defer sess.Close()
 
+	out, err := sess.CombinedOutput(cmd)
+	if err != nil {
+		log.Error("SSH session (%q): %v", cmd, err)
+	}
+	log.Info("Got %q", string(out))
+
+/*
 	var out bytes.Buffer
 	sess.Stdout = &out
 
 	log.Info("Running %q", cmd)
 	err = sess.Run(cmd)
 	if err != nil {
-		log.Fatal("SSH session (%q): %v", cmd, err)
+		log.Error("SSH session (%q): %v", cmd, err)
 	}
 	log.Info("Got %q", out.String())
+*/
 }
