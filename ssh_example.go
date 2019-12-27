@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"flag"
 	"github.com/jn0/go-log"
 	"golang.org/x/crypto/ssh"
 	"os/user"
-	"flag"
-	"bytes"
 )
 
 var log = logging.Root
@@ -44,8 +44,8 @@ func main() {
 		"tcp",
 		host+":"+sshcf.Get(host, "Port", "22"),
 		&ssh.ClientConfig{
-			User: sshcf.Get(host, "User", u.Username),
-			Auth: []ssh.AuthMethod{ssh.PublicKeys(LoadPrivateKey())},
+			User:            sshcf.Get(host, "User", u.Username),
+			Auth:            []ssh.AuthMethod{ssh.PublicKeys(LoadPrivateKey())},
 			HostKeyCallback: ssh.FixedHostKey(FindHostKey(host)),
 		},
 	)

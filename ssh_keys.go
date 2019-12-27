@@ -1,14 +1,14 @@
 package main
 
 import (
+	"bufio"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"os"
-	"bufio"
 	"strings"
-	"encoding/base64"
-	"crypto/hmac"
-	"crypto/sha1"
 )
 
 func LoadPrivateKey() ssh.Signer {

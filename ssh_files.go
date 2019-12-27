@@ -12,9 +12,9 @@ import (
 /*============================================================================*/
 
 const (
-	DefaultSshConfigFile = ".ssh/config"
-	DefaultSshKnownHosts = ".ssh/known_hosts"
-	DefaultSshKeyFile = ".ssh/id_rsa"
+	DefaultSshConfigFile       = ".ssh/config"
+	DefaultSshKnownHosts       = ".ssh/known_hosts"
+	DefaultSshKeyFile          = ".ssh/id_rsa"
 	DefaultSshKeyFilePubSuffix = ".pub"
 )
 
@@ -53,10 +53,10 @@ func FindHostKeyFile(username string) string {
 }
 
 func FindSshPubKeyFile(username string) string {
-	path, err := findSshFile(username, DefaultSshKeyFile + DefaultSshKeyFilePubSuffix)
+	path, err := findSshFile(username, DefaultSshKeyFile+DefaultSshKeyFilePubSuffix)
 	if err != nil {
 		log.Fatal("Cannot find pub key %q for user %q in %q: %v",
-			DefaultSshKeyFile + DefaultSshKeyFilePubSuffix,
+			DefaultSshKeyFile+DefaultSshKeyFilePubSuffix,
 			username, path, err)
 	}
 	return path
