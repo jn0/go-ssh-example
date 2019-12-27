@@ -88,7 +88,7 @@ func (self *SshConfigFile) Get(host, sect, dflt string) string {
 	if host != x {
 		x = x + ">" + host
 	}
-	log.Debug("%q[%q][%q] (%q) = %q", self.name, x, sect, dflt, res)
+	log.Debug("%q[%q.%q] (%q) = %q", self.name, x, sect, dflt, res)
 	return res
 }
 func (self *SshConfigFile) get(name string) (string, *SshConfigFileEntry) {
