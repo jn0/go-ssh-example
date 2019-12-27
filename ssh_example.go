@@ -16,6 +16,10 @@ func main() {
 
 	log.SetLevel(logging.DEBUG)
 	log.UsePanic(true)
+
+	use_term := false
+	flag.BoolVar(&use_term, "term", false, "request tty")
+
 	flag.Parse()
 
 	u, err := user.Current()
@@ -59,6 +63,21 @@ func main() {
 		log.Fatal("SSH client session: %v", err)
 	}
 	defer sess.Close()
+
+	if use_term {
+		term := "dumb"
+		modes := ssh.TerminalModes{
+			ssh.ECHO: 1,
+			ssh.TTY_OP_ISPEED: 19200,
+			ssh.TTY_OP_OSPEED: 19200,
+		}
+		log.Debug("Requesting a tty (%q %v)", term, modes)
+		err := sess.RequestPty(term, 80, 25, modes)
+		if err != nil {
+			log.Fatal("Cannot request tty: %v", err)
+		}
+		log.Debug("Got a tty!")
+	}
 
 	out, err := sess.CombinedOutput(cmd)
 	if err != nil {

@@ -23,4 +23,6 @@ Sample output one may expect looks like this one:
 2019/12/27 12:12:44 INFO: stopped
 ```
 
+One may add the `-term` flag and run, say, `tty` command to see the difference.
+
 # EOF #
