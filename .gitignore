@@ -1,9 +1,13 @@
 # Binaries for programs and plugins
+go-ssh-example
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+
+# vi/vim swap files
+.*.swp
 
 # Test binary, built with `go test -c`
 *.test
