@@ -81,6 +81,12 @@ func FindSshConfigFile(username string) string {
 }
 
 /*============================================================================*/
+func IsCommentOrBlank(line string) bool {
+	const comment = "#"
+	return strings.TrimSpace(line) == "" ||
+		strings.HasPrefix(strings.TrimSpace(line), comment)
+}
+/*============================================================================*/
 
 var leadingSpace_re = regexp.MustCompile(`^\s+`)
 var spaces_re = regexp.MustCompile(`\s+`)
@@ -89,7 +95,6 @@ func LoadSshConfigFile(name string) (cfg *SshConfigFile, e error) {
 	const (
 		nl      = "\n"
 		sp      = " "
-		comment = "#"
 	)
 
 	fname := name
@@ -107,8 +112,7 @@ func LoadSshConfigFile(name string) (cfg *SshConfigFile, e error) {
 	var entry *SshConfigFileEntry
 	for i, line := range strings.Split(string(bytes), nl) {
 		// log.Debug("%q[%d]: %q", name, i + 1, line)
-		if strings.TrimSpace(line) == "" ||
-			strings.HasPrefix(strings.TrimSpace(line), comment) {
+		if IsCommentOrBlank(line) {
 			continue
 		}
 		if strings.HasPrefix(line, "Host") {

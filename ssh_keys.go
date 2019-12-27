@@ -70,6 +70,7 @@ func IsHostKeyEntry(host, entry string) bool {
 }
 
 func FindHostKey(host string) ssh.PublicKey {
+	// https://github.com/Nokta-strigo/known_hosts_parser
 	path := FindHostKeyFile("")
 	log.Debug("host keys in %q", path)
 
@@ -80,14 +81,30 @@ func FindHostKey(host string) ssh.PublicKey {
 	defer kh.Close()
 
 	scanner := bufio.NewScanner(kh)
+	ln := 0
 	for scanner.Scan() {
-		word := strings.Split(scanner.Text(), " ")
+		ln += 1
+		line := scanner.Text()
+		if IsCommentOrBlank(line) {
+			continue
+		}
+		if strings.HasPrefix(line, "@") {
+			word := strings.Split(line, " ")
+			log.Debug("%3d: marker %q", ln, word[0])
+			line = strings.Join(word[1:], " ")
+		}
+		word := strings.Split(line, " ")
+		cmnt := ""
+		if len(word) > 3 {
+			cmnt = " [" + strings.Join(word[3:], " ") + "]"
+		}
 		if IsHostKeyEntry(host, word[0]) {
 			hostKey, _, _, _, err := ssh.ParseAuthorizedKey(scanner.Bytes())
 			if err != nil {
 				log.Fatal("Error parsing %v: %v", word, err)
 			}
-			log.Debug("Found key for host %q", host)
+			log.Debug("Found %q key for host %q at line %d%s",
+				word[1], host, ln, cmnt)
 			return hostKey
 		}
 	}
