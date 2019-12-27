@@ -65,7 +65,7 @@ func main() {
 	defer sess.Close()
 
 	if use_term {
-		term := "dumb"
+		term := "pty" // "dumb"
 		modes := ssh.TerminalModes{
 			ssh.ECHO: 1,
 			ssh.TTY_OP_ISPEED: 19200,
