@@ -1,7 +1,6 @@
 package main
 
 import (
-//	"bytes"
 	"flag"
 	"github.com/jn0/go-log"
 	"golang.org/x/crypto/ssh"
@@ -44,13 +43,24 @@ func main() {
 		cmd = flag.Arg(1)
 	}
 
+	context := map[string]string{
+		"host": host,
+		"port": sshcf.Get(host, "Port", "22"),
+		"user": sshcf.Get(host, "User", u.Username),
+	}
+
+	hkey := FindHostKeyByContext(context)
+	if hkey == nil {
+		log.Fatal("No known host key for %+q", host)
+	}
+
 	sshc, err := ssh.Dial(
 		"tcp",
-		host+":"+sshcf.Get(host, "Port", "22"),
+		host+":"+context["port"],
 		&ssh.ClientConfig{
-			User:            sshcf.Get(host, "User", u.Username),
+			User:            context["user"],
 			Auth:            []ssh.AuthMethod{ssh.PublicKeys(LoadPrivateKey())},
-			HostKeyCallback: ssh.FixedHostKey(FindHostKey(host)),
+			HostKeyCallback: ssh.FixedHostKey(hkey),
 		},
 	)
 	if err != nil {

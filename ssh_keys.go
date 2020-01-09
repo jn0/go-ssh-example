@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
+	"fmt"
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"os"
@@ -69,11 +70,8 @@ func IsHostKeyEntry(host, entry string) bool {
 	return false // never reached
 }
 
-func FindHostKey(host string) ssh.PublicKey {
+func FindHostKey(path, host string) ssh.PublicKey {
 	// https://github.com/Nokta-strigo/known_hosts_parser
-	path := FindHostKeyFile("")
-	log.Debug("host keys in %q", path)
-
 	kh, err := os.Open(path)
 	if err != nil {
 		log.Fatal("Cannot open %q: %v", path, err)
@@ -108,7 +106,29 @@ func FindHostKey(host string) ssh.PublicKey {
 			return hostKey
 		}
 	}
-	log.Fatal("No key for host %q", host)
+	return nil
+}
+
+func FindHostKeyByContext(context map[string]string) ssh.PublicKey {
+	path := FindHostKeyFile("")
+	log.Debug("Host keys from %q", path)
+
+	var tries []string
+
+	host, ok := context["host"]
+	if !ok { log.Fatal("No \"host\" entry in context %v", context) }
+	tries = append(tries, host)
+
+	port, ok := context["port"]
+	if ok { tries = append(tries, fmt.Sprintf("[%s]:%s", host, port)) }
+
+	for _, pattern := range tries {
+		r := FindHostKey(path, pattern)
+		if r != nil {
+			return r
+		}
+	}
+	log.Warn("No key for host %q", host)
 	return nil
 }
 
