@@ -12,6 +12,7 @@ import (
 /*============================================================================*/
 
 const (
+	SystemSshConfigFile        = "/etc/ssh/ssh_config"
 	DefaultSshConfigFile       = ".ssh/config"
 	DefaultSshKnownHosts       = ".ssh/known_hosts"
 	DefaultSshKeyFile          = ".ssh/id_rsa"

@@ -27,6 +27,10 @@ func main() {
 	}
 	log.Info("Running as %q (%s)", u.Username, u.Name)
 
+	sshCF, err := LoadSshConfigFile(SystemSshConfigFile)
+	if err != nil {
+		log.Fatal("SSH config file: %v", err)
+	}
 	sshcf, err := LoadSshConfigFile(DefaultSshConfigFile)
 	if err != nil {
 		log.Fatal("SSH config file: %v", err)
