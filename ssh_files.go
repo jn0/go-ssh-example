@@ -87,6 +87,7 @@ func IsCommentOrBlank(line string) bool {
 	return strings.TrimSpace(line) == "" ||
 		strings.HasPrefix(strings.TrimSpace(line), comment)
 }
+
 /*============================================================================*/
 
 var leadingSpace_re = regexp.MustCompile(`^\s+`)
@@ -94,8 +95,8 @@ var spaces_re = regexp.MustCompile(`\s+`)
 
 func LoadSshConfigFile(name string) (cfg *SshConfigFile, e error) {
 	const (
-		nl      = "\n"
-		sp      = " "
+		nl = "\n"
+		sp = " "
 	)
 
 	fname := name

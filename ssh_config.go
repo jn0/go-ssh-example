@@ -8,7 +8,7 @@ import (
 
 /*============================================================================*/
 
-type SshConfigFileEntry map[string]string
+type SshConfigFileEntry map[string]string // key:value pairs like "Port":"2222"
 
 func (self *SshConfigFileEntry) IsNull() bool {
 	return self == nil || *self == nil
@@ -70,10 +70,10 @@ func (self *SshConfigFileEntry) String() string {
 /*============================================================================*/
 
 type SshConfigFile struct {
-	name  string
-	hosts []string
-	entry map[string]*SshConfigFileEntry
-	globs map[string]glob.Glob
+	name  string                         // path
+	hosts []string                       // keep the sequence
+	entry map[string]*SshConfigFileEntry // actual data
+	globs map[string]glob.Glob           // possible wildcards handling
 }
 
 func (self *SshConfigFile) Get(host, sect, dflt string) string {
@@ -158,6 +158,56 @@ func (self *SshConfigFile) String() string {
 		list = append(list, "Host "+host, self.entry[host].String())
 	}
 	return "# " + self.name + " #\n" + strings.Join(list, "\n") + "\n# EOF #"
+}
+
+/*============================================================================*/
+
+type SshConfig []*SshConfigFile // just a sequence of config files
+
+func (self *SshConfig) Load(name string) {
+	cfg, err := LoadSshConfigFile(name)
+	if err != nil {
+		log.Fatal("SSH config file %q: %v", name, err)
+	}
+	log.Info("SSH config file %q has %d host entries", cfg.Name(), cfg.Len())
+	*self = append(*self, cfg)
+}
+
+func (self *SshConfig) GetValue(host, name, dflt string) (res string) {
+	res, _ = self.Get(host, name, dflt)
+	return
+}
+
+func (self *SshConfig) Get(host, name, dflt string) (res string, found bool) {
+	res = dflt
+	for _, config := range *self {
+		x, h := config.get(host)
+		if h == nil {
+			continue
+		}
+		v, ok := h.Get(name)
+		if ok {
+			found = true
+			res = v
+		}
+		if host != x {
+			x = x + ">" + host
+		}
+		log.Debug("%q[%q.%q] (%q) = %q", config.name, x, name, dflt, res)
+		break
+	}
+	return
+}
+
+func NewSshConfig(names ...string) *SshConfig {
+	cfg := new(SshConfig)
+	if len(names) == 0 {
+		names = []string{DefaultSshConfigFile, SystemSshConfigFile}
+	}
+	for _, name := range names {
+		cfg.Load(name)
+	}
+	return cfg
 }
 
 /* EOF */

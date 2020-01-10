@@ -27,17 +27,6 @@ func main() {
 	}
 	log.Info("Running as %q (%s)", u.Username, u.Name)
 
-	sshCF, err := LoadSshConfigFile(SystemSshConfigFile)
-	if err != nil {
-		log.Fatal("SSH config file: %v", err)
-	}
-	sshcf, err := LoadSshConfigFile(DefaultSshConfigFile)
-	if err != nil {
-		log.Fatal("SSH config file: %v", err)
-	}
-	log.Info("SSH config file %q has %d host entries", sshcf.Name(), sshcf.Len())
-	// log.Say("Config:\n%s\n", sshcf)
-
 	host := "host.example.com"
 	cmd := "pwd"
 	if flag.NArg() > 0 {
@@ -47,10 +36,12 @@ func main() {
 		cmd = flag.Arg(1)
 	}
 
+	sshcfg := NewSshConfig()
+
 	context := map[string]string{
 		"host": host,
-		"port": sshcf.Get(host, "Port", "22"),
-		"user": sshcf.Get(host, "User", u.Username),
+		"port": sshcfg.GetValue(host, "Port", "22"),
+		"user": sshcfg.GetValue(host, "User", u.Username),
 	}
 
 	hkey := FindHostKeyByContext(context)
@@ -81,7 +72,7 @@ func main() {
 	if use_term {
 		term := "pty" // "dumb"
 		modes := ssh.TerminalModes{
-			ssh.ECHO: 1,
+			ssh.ECHO:          1,
 			ssh.TTY_OP_ISPEED: 19200,
 			ssh.TTY_OP_OSPEED: 19200,
 		}
@@ -99,15 +90,15 @@ func main() {
 	}
 	log.Info("Got %q", string(out))
 
-/*
-	var out bytes.Buffer
-	sess.Stdout = &out
+	/*
+		var out bytes.Buffer
+		sess.Stdout = &out
 
-	log.Info("Running %q", cmd)
-	err = sess.Run(cmd)
-	if err != nil {
-		log.Error("SSH session (%q): %v", cmd, err)
-	}
-	log.Info("Got %q", out.String())
-*/
+		log.Info("Running %q", cmd)
+		err = sess.Run(cmd)
+		if err != nil {
+			log.Error("SSH session (%q): %v", cmd, err)
+		}
+		log.Info("Got %q", out.String())
+	*/
 }
