@@ -41,21 +41,32 @@ type Job struct {
 var Config struct {
 	LogLevel string
 	UsePanic bool
+	NoColor  bool
 }
 
+var color aurora.Aurora
+var lock_elapsed sync.Mutex
 var elapsed map[int]time.Duration
+var result map[int]error
+
+func elapse(task int, d time.Duration, e error) {
+	lock_elapsed.Lock()
+	defer lock_elapsed.Unlock()
+	elapsed[task] = d // it has to be locked. real shit.
+	result[task] = e
+}
 
 func run(wg *sync.WaitGroup, task int, context map[string]string, command string) {
 	log.Info("[%d] @%q: %q", task, context["host"], command)
 	t1 := time.Now()
 	out, err := RunCommandOverSsh(context, command)
 	t2 := time.Now()
-	e := aurora.Green("ok")
+	e := color.Green("ok")
 	if err != nil {
-		e = aurora.Red(err.Error())
+		e = color.Red(err.Error())
 	}
 	dt := t2.Sub(t1)
-	elapsed[task] = dt
+	elapse(task, dt, err)
 	log.Info("[%d] @%q: %q (%v) %s", task, context["host"], out, e, dt)
 	wg.Done()
 }
@@ -63,14 +74,18 @@ func run(wg *sync.WaitGroup, task int, context map[string]string, command string
 func main() {
 	flag.BoolVar(&Config.UsePanic, "log-panic", false, "use panic() for fatals")
 	flag.StringVar(&Config.LogLevel, "log-level", "INFO", "log level")
+	flag.BoolVar(&Config.NoColor, "log-color", false, "disable log colors")
 	flag.Parse()
 	defer log.Debug("Done")
+
+	color = aurora.NewAurora(!Config.NoColor)
 
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
 	log.UsePanic(Config.UsePanic)
 
 	task := 0
 	elapsed = make(map[int]time.Duration)
+	result = make(map[int]error)
 	wg := sync.WaitGroup{}
 	t1 := time.Now()
 	for _, arg := range flag.Args() {
@@ -94,6 +109,7 @@ func main() {
 		}
 
 		for _, host := range job.Hosts {
+			elapsed[task] = 0
 			context := NewContext(host+dom, job.UseTty)
 			wg.Add(1)
 			go run(&wg, task, context, job.Command)
@@ -104,9 +120,18 @@ func main() {
 	log.Debug("All started in %s", t2.Sub(t1))
 	wg.Wait()
 	t2 = time.Now()
+	failed := 0
 	var total time.Duration
-	for _, v := range elapsed {
+	for t, v := range elapsed {
 		total += v
+		if result[t] != nil {
+			failed += 1
+		}
 	}
-	log.Info("Total run time %s for %d tasks in %s (%.1f× speedup)", total, len(elapsed), t2.Sub(t1), total.Seconds()/t2.Sub(t1).Seconds())
+	log.Info("Total run time %s for %d tasks in %s (%.1f× speedup)",
+		total, len(elapsed), t2.Sub(t1), total.Seconds()/t2.Sub(t1).Seconds())
+	if failed != 0 {
+		log.Warn("There were %d failed tasks out of %d, %.0f%%",
+			failed, len(result), float64(100*failed)/float64(len(result)))
+	}
 }
