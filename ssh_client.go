@@ -79,7 +79,7 @@ func NewSshClient(context map[string]string) *ssh.Client {
 	return clnt
 }
 
-func RunCommandOverSsh(context map[string]string, command string, args ...string) string {
+func RunCommandOverSsh(context map[string]string, command string, args ...string) (string, error) {
 	sshc := NewSshClient(context)
 	defer sshc.Close()
 
@@ -123,10 +123,10 @@ func RunCommandOverSsh(context map[string]string, command string, args ...string
 
 	out, err := sess.CombinedOutput(cmd)
 	if err != nil {
-		log.Error("SSH session (%q): %v", cmd, err)
+		log.Debug("SSH session (%q): %v", cmd, err)
 	}
 
-	return string(out)
+	return string(out), err
 }
 
 /* EOF */
