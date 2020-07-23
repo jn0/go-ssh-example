@@ -1,3 +1,20 @@
+/* go build && ./go-ssh-example test.yaml
+ * where test.yaml looks like
+ ########################################
+command: cd /tmp && pwd; exit 0
+tty: false
+domain: example.com
+hosts:
+        - test-web
+        - test-db
+        - test-backup
+ ########################################
+ * it will run 3 parallel SSH to perform
+ * `cd /tmp && pwd; exit 0` on each of
+ *      - test-web.example.com
+ *      - test-db.example.com
+ *      - test-backup.example.com
+*/
 package main
 
 import (
