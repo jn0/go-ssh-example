@@ -1,7 +1,7 @@
 /* go build && ./go-ssh-example test.yaml
  * where test.yaml looks like
  ########################################
-command: cd /tmp && pwd; exit 0
+command: cd /tmp && pwd; tty
 tty: false
 domain: example.com
 hosts:
@@ -10,7 +10,7 @@ hosts:
         - test-backup
  ########################################
  * it will run 3 parallel SSH to perform
- * `cd /tmp && pwd; exit 0` on each of
+ * `cd /tmp && pwd; tty` on each of
  *      - test-web.example.com
  *      - test-db.example.com
  *      - test-backup.example.com
@@ -19,29 +19,25 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	logging "github.com/jn0/go-log"
 	"github.com/logrusorgru/aurora"
-	"gopkg.in/yaml.v2"
 )
 
 var log = logging.Root
 
-type Job struct {
-	Command string   `yaml:"command"`
-	Domain  string   `yaml:"domain"`
-	Hosts   []string `yaml:"hosts"`
-	UseTty  bool     `yaml:"tty"`
-}
-
 var Config struct {
-	LogLevel string
-	UsePanic bool
-	NoColor  bool
+	LogLevel   string
+	DefaultDir string
+	ListDir    bool
+	UsePanic   bool
+	NoColor    bool
 }
 
 var color aurora.Aurora
@@ -54,6 +50,16 @@ func elapse(task int, d time.Duration, e error) {
 	defer lock_elapsed.Unlock()
 	elapsed[task] = d // it has to be locked. real shit.
 	result[task] = e
+}
+
+func totals() (failed int, total time.Duration) {
+	for t, v := range elapsed {
+		total += v
+		if result[t] != nil {
+			failed += 1
+		}
+	}
+	return
 }
 
 func run(wg *sync.WaitGroup, task int, context map[string]string, command string) {
@@ -74,11 +80,31 @@ func run(wg *sync.WaitGroup, task int, context map[string]string, command string
 }
 
 func main() {
+	var err error
+	Config.DefaultDir, err = os.UserConfigDir()
+	if err != nil {
+		Config.DefaultDir = "/etc/rupdate.d"
+	} else {
+		Config.DefaultDir = filepath.Join(Config.DefaultDir, "rupdate.d")
+	}
+	flag.StringVar(&Config.DefaultDir, "dir", Config.DefaultDir,
+		"default directory for yaml scripts")
+	flag.BoolVar(&Config.ListDir, "list", false, "list the <dir>")
+
 	flag.BoolVar(&Config.UsePanic, "log-panic", false, "use panic() for fatals")
 	flag.StringVar(&Config.LogLevel, "log-level", "INFO", "log level")
 	flag.BoolVar(&Config.NoColor, "log-color", false, "disable log colors")
+
 	flag.Parse()
 	defer log.Debug("Done")
+
+	if Config.ListDir {
+		ListYaml(Config.DefaultDir, func(pth, title string) {
+			os.Stdout.Write([]byte(strings.TrimSuffix(path.Base(pth), ".yaml") +
+				"\t" + title + "\n"))
+		})
+		return
+	}
 
 	color = aurora.NewAurora(!Config.NoColor)
 
@@ -91,46 +117,27 @@ func main() {
 	wg := sync.WaitGroup{}
 	t1 := time.Now()
 	for _, arg := range flag.Args() {
-		data, err := ioutil.ReadFile(arg)
+		job, err := LoadYaml(arg, Config.DefaultDir)
 		if err != nil {
 			log.Error("Cannot read %q: %v", arg, err)
 			continue
 		}
 
-		var job Job
-		err = yaml.Unmarshal(data, &job)
-		if err != nil {
-			log.Error("Cannot process %q: %v", arg, err)
-		}
-
-		dom := ""
-		if job.Domain != "" {
-			if !strings.HasPrefix(job.Domain, ".") {
-				dom = "."
-			}
-			dom += job.Domain
-		}
-
 		for _, host := range job.Hosts {
 			elapsed[task] = 0
-			context := NewContext(host+dom, job.UseTty)
+			context := NewContext(host, job.UseTty)
 			wg.Add(1)
 			go run(&wg, task, context, job.Command)
 			task += 1
 		}
 	}
 	t2 := time.Now()
+
 	log.Debug("All started in %s", t2.Sub(t1))
 	wg.Wait()
 	t2 = time.Now()
-	failed := 0
-	var total time.Duration
-	for t, v := range elapsed {
-		total += v
-		if result[t] != nil {
-			failed += 1
-		}
-	}
+
+	failed, total := totals()
 	log.Info("Total run time %s for %d tasks in %s (%.1f× speedup)",
 		total, len(elapsed), t2.Sub(t1), total.Seconds()/t2.Sub(t1).Seconds())
 	if failed != 0 {
