@@ -62,12 +62,14 @@ func run(wg *sync.WaitGroup, task int, context map[string]string, command string
 	out, err := RunCommandOverSsh(context, command)
 	t2 := time.Now()
 	e := color.Green("ok")
+	f := log.Info
 	if err != nil {
 		e = color.Red(err.Error())
+		f = log.Warn
 	}
 	dt := t2.Sub(t1)
 	elapse(task, dt, err)
-	log.Info("[%d] @%q: %q (%v) %s", task, context["host"], out, e, dt)
+	f("[%d] @%q: %q (%v) %s", task, context["host"], out, e, dt)
 	wg.Done()
 }
 
@@ -91,7 +93,8 @@ func main() {
 	for _, arg := range flag.Args() {
 		data, err := ioutil.ReadFile(arg)
 		if err != nil {
-			log.Fatal("Cannot read %q: %v", arg, err)
+			log.Error("Cannot read %q: %v", arg, err)
+			continue
 		}
 
 		var job Job
