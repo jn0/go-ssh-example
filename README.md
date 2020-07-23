@@ -2,27 +2,35 @@
 
 My first attempt to use SSH in Go (yes, it works)
 
-Run as `go build && ./go-ssh-example <host-where-you-have-access-to> [<command-to-run-there>]`.
+Run as `go build && ./go-ssh-example <yaml-files...>`.
 
-Default command is `pwd` (safe enough).
+For such a "script"
+
+```
+# sample config
+command: cd /tmp && pwd; tty
+tty: false
+domain: example.com
+hosts:
+        - test-web
+        - test-vip
+        - test-whois
+# EOF #
+```
 
 Sample output one may expect looks like this one:
 
 ```
-2019/12/27 12:12:44 INFO: started
-2019/12/27 12:12:44 NOTE: Log level INFO -> DEBUG
-2019/12/27 12:12:44 INFO: Running as "jno" (jno)
-2019/12/27 12:12:44 INFO: Loaded "/home/jno/.ssh/config"
-2019/12/27 12:12:44 INFO: SSH config file "/home/jno/.ssh/config" has 46 host entries
-2019/12/27 12:12:44 DEBUG: "/home/jno/.ssh/config"["host.example.com"]["Port"] ("22") = "22"
-2019/12/27 12:12:44 DEBUG: "/home/jno/.ssh/config"["host.example.com"]["User"] ("jno") = "root"
-2019/12/27 12:12:44 DEBUG: host keys in "/home/jno/.ssh/known_hosts"
-2019/12/27 12:12:44 DEBUG: Found key for host "host.example.com"
-2019/12/27 12:12:44 INFO: Running "pwd"
-2019/12/27 12:12:44 INFO: Got "/root\n"
-2019/12/27 12:12:44 INFO: stopped
+2020/07/23 16:14:13 INFO: [0] @"test-web.example.com": "cd /tmp && pwd; tty"
+2020/07/23 16:14:13 INFO: [1] @"test-vip.example.com": "cd /tmp && pwd; tty"
+2020/07/23 16:14:13 INFO: [2] @"test-whois.example.com": "cd /tmp && pwd; tty"
+2020/07/23 16:14:14 WARNING: [2] @"test-whois.example.com": "/tmp\nnot a tty\n" (Process exited with status 1) 492.249924ms
+2020/07/23 16:14:14 WARNING: [1] @"test-vip.example.com": "/tmp\nnot a tty\n" (Process exited with status 1) 504.932858ms
+2020/07/23 16:14:14 WARNING: [0] @"test-web.example.com": "/tmp\nnot a tty\n" (Process exited with status 1) 507.690531ms
+2020/07/23 16:14:14 INFO: Total run time 1.504873313s for 3 tasks in 508.72044ms (3.0× speedup)
+2020/07/23 16:14:14 WARNING: There were 3 failed tasks out of 3, 100%
 ```
 
-One may add the `-term` flag and run, say, `tty` command to see the difference.
+One may change the `tty` value to `true` to get rid of those errors.
 
 # EOF #
