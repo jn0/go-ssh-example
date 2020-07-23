@@ -145,7 +145,7 @@ func LoadSshConfigFile(name string) (cfg *SshConfigFile, e error) {
 		}
 		cfg.Set(host, entry)
 	}
-	log.Info("Loaded %q", fname)
+	log.Debug("Loaded %q", fname)
 	return
 }
 

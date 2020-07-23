@@ -9,7 +9,7 @@ func NewContext(host string, use_term bool) map[string]string {
 	if err != nil {
 		log.Fatal("No current user: %v", err)
 	}
-	log.Info("Running as %q (%s)", u.Username, u.Name)
+	log.Debug("Running as %q (%s)", u.Username, u.Name)
 
 	sshcfg := NewSshConfig()
 

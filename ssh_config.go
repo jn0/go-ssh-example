@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/gobwas/glob"
 	"sort"
 	"strings"
+
+	"github.com/gobwas/glob"
 )
 
 /*============================================================================*/
@@ -169,7 +170,7 @@ func (self *SshConfig) Load(name string) {
 	if err != nil {
 		log.Fatal("SSH config file %q: %v", name, err)
 	}
-	log.Info("SSH config file %q has %d host entries", cfg.Name(), cfg.Len())
+	log.Debug("SSH config file %q has %d host entries", cfg.Name(), cfg.Len())
 	*self = append(*self, cfg)
 }
 
