@@ -6,11 +6,18 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"golang.org/x/crypto/ssh"
 )
+
+// now returns empty passphrase
+func AskPass(prompt string) []byte {
+	// os.Stderr.Write([]byte("\n" + prompt + ": "))
+	return []byte("")
+}
 
 func LoadPrivateKey() ssh.Signer {
 	id_rsa := FindSshPvtKeyFile("")
@@ -19,10 +26,20 @@ func LoadPrivateKey() ssh.Signer {
 		log.Fatal("Cannot read %q: %v", id_rsa, err)
 	}
 	sgn, err := ssh.ParsePrivateKey(pem)
-	if err != nil {
-		log.Fatal("Cannot parse %q: %v", id_rsa, err)
+	if err == nil {
+		return sgn
 	}
-	return sgn
+	switch err.(type) {
+	case *ssh.PassphraseMissingError:
+		pass := AskPass(id_rsa)
+		sgn, err = ssh.ParsePrivateKeyWithPassphrase(pem, pass)
+		if err == nil {
+			return sgn
+		}
+		return nil
+	}
+	log.Fatal("Cannot parse %q: %v", id_rsa, err)
+	return nil
 }
 
 func LoadPublicKey() ssh.PublicKey {

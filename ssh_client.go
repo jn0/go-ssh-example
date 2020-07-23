@@ -1,27 +1,63 @@
 package main
 
 import (
-	"golang.org/x/crypto/ssh"
+	"net"
+	"os"
 	"strings"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 /*============================================================================*/
 
-func NewSshClientConfig(context map[string]string) *ssh.ClientConfig {
-	host, ok := context["host"]
-	if !ok {
-		log.Fatal("Context %v has no \"host\" entry", context)
-	}
+const SSH_AUTH_SOCK = "SSH_AUTH_SOCK"
 
+func newSshAgentClient() agent.ExtendedAgent {
+	socket := os.Getenv(SSH_AUTH_SOCK)
+	conn, err := net.Dial("unix", socket)
+	if err != nil {
+		log.Error("Cannot use %s=%q: %v", SSH_AUTH_SOCK, socket, err)
+		return nil
+	}
+	return agent.NewClient(conn)
+}
+
+func authMethods() []ssh.AuthMethod {
+	var auth []ssh.AuthMethod
+	agn := newSshAgentClient()
+	if agn != nil {
+		log.Debug("Using agent via %q", os.Getenv(SSH_AUTH_SOCK))
+		auth = append(auth, ssh.PublicKeysCallback(agn.Signers))
+	}
+	pk := LoadPrivateKey()
+	if pk != nil {
+		log.Debug("Using private key")
+		auth = append(auth, ssh.PublicKeys(LoadPrivateKey()))
+	}
+	return auth
+}
+
+func hostKeyMethod(context map[string]string) ssh.HostKeyCallback {
 	hkey := FindHostKeyByContext(context)
 	if hkey == nil {
-		log.Fatal("No known host key for %+q", host)
+		log.Error("No known host key for %+q", context["host"])
+	} else {
+		return ssh.FixedHostKey(hkey)
+	}
+	return ssh.InsecureIgnoreHostKey()
+}
+
+func NewSshClientConfig(context map[string]string) *ssh.ClientConfig {
+	if _, ok := context["host"]; !ok {
+		log.Fatal("Context %v has no \"host\" entry", context)
 	}
 
 	return &ssh.ClientConfig{
 		User:            context["user"],
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(LoadPrivateKey())},
-		HostKeyCallback: ssh.FixedHostKey(hkey),
+		Auth:            authMethods(),
+		BannerCallback:  ssh.BannerDisplayStderr(),
+		HostKeyCallback: hostKeyMethod(context),
 	}
 }
 
@@ -36,9 +72,9 @@ func NewSshClient(context map[string]string) *ssh.Client {
 		port = "22"
 	}
 
-	clnt, err := ssh.Dial("tcp", host+":"+port, NewSshClientConfig(context))
+	clnt, err := ssh.Dial("tcp", net.JoinHostPort(host, port), NewSshClientConfig(context))
 	if err != nil {
-		log.Fatal("SSH client: %v", err)
+		log.Fatal("SSH client[%v:%v]: %v", host, port, err)
 	}
 	return clnt
 }
