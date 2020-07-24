@@ -18,9 +18,12 @@ hosts:
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -41,6 +44,7 @@ var Config struct {
 	ListDir    bool
 	UsePanic   bool
 	NoColor    bool
+	Edit       bool
 }
 
 var color aurora.Aurora
@@ -125,6 +129,48 @@ func run(wg *sync.WaitGroup, context *Context, job *Job) {
 	wg.Done()
 }
 
+var envEditorNames = []string{"VISUAL", "EDITOR"}
+
+func _edit(editor, file string) error {
+	cmd := exec.Command(editor, file)
+	if !FileExists(cmd.Path) {
+		return errors.New(fmt.Sprintf("No %q", cmd.Path))
+	}
+	log.Debug("%q %v", cmd.Path, cmd.Args)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error running %q: %v", cmd.Path, err))
+	}
+	return nil
+}
+
+const TheEditor = "vi"
+
+func edit(name string) {
+	if name == "" {
+		return
+	}
+	for _, ev := range envEditorNames {
+		ed, ok := os.LookupEnv(ev)
+		if !ok || ed == "" {
+			continue
+		}
+		err := _edit(ed, name)
+		if err != nil {
+			log.Warn("%q=%q: %v", ed, ev, err)
+			continue
+		}
+		return
+	}
+	if _edit(TheEditor, name) == nil { // last resort
+		return
+	}
+	log.Fatal("No editor found")
+}
+
 func main() {
 	var err error
 	Config.DefaultDir, err = os.UserConfigDir()
@@ -142,9 +188,26 @@ func main() {
 	flag.BoolVar(&Config.NoColor, "log-color", false, "disable log colors")
 
 	flag.StringVar(&Config.SaveDir, "save", Config.SaveDir, "directory to save output to")
+	flag.BoolVar(&Config.Edit, "edit", false, "run editor on the yaml")
 
 	flag.Parse()
 	defer log.Debug("Done")
+
+	color = aurora.NewAurora(!Config.NoColor)
+
+	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
+	log.UsePanic(Config.UsePanic)
+
+	if Config.Edit {
+		if flag.NArg() == 0 {
+			edit(Config.DefaultDir)
+		} else {
+			for _, arg := range flag.Args() {
+				edit(YamlFile(arg, Config.DefaultDir))
+			}
+		}
+		return
+	}
 
 	if flag.NArg() == 0 {
 		ListYaml(Config.DefaultDir, func(pth, title string) {
@@ -166,11 +229,6 @@ func main() {
 		}
 		return
 	}
-
-	color = aurora.NewAurora(!Config.NoColor)
-
-	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
-	log.UsePanic(Config.UsePanic)
 
 	if Config.SaveDir != "" && !DirExists(Config.SaveDir) {
 		log.Fatal("Cannot save to %q: it does not exist", Config.SaveDir)
