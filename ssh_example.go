@@ -175,9 +175,9 @@ func main() {
 	var err error
 	Config.DefaultDir, err = os.UserConfigDir()
 	if err != nil {
-		Config.DefaultDir = "/etc/rupdate.d"
+		Config.DefaultDir = filepath.Join("/etc", filepath.Base(os.Args[0])+".d")
 	} else {
-		Config.DefaultDir = filepath.Join(Config.DefaultDir, "rupdate.d")
+		Config.DefaultDir = filepath.Join(Config.DefaultDir, filepath.Base(os.Args[0])+".d")
 	}
 	flag.StringVar(&Config.DefaultDir, "dir", Config.DefaultDir,
 		"default directory for yaml scripts")
