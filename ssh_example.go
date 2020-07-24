@@ -36,6 +36,7 @@ var log = logging.Root
 var Config struct {
 	LogLevel   string
 	DefaultDir string
+	SaveDir    string
 	ListDir    bool
 	UsePanic   bool
 	NoColor    bool
@@ -120,6 +121,8 @@ func main() {
 	flag.StringVar(&Config.LogLevel, "log-level", "INFO", "log level")
 	flag.BoolVar(&Config.NoColor, "log-color", false, "disable log colors")
 
+	flag.StringVar(&Config.SaveDir, "save", Config.SaveDir, "directory to save output to")
+
 	flag.Parse()
 	defer log.Debug("Done")
 
@@ -149,6 +152,10 @@ func main() {
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
 	log.UsePanic(Config.UsePanic)
 
+	if !DirExists(Config.SaveDir) {
+		log.Fatal("Cannot save to %q: it does not exist", Config.SaveDir)
+	}
+
 	task := 0
 	elapsed = make(map[int]time.Duration)
 	result = make(map[int]error)
@@ -169,7 +176,7 @@ func main() {
 		for _, host := range job.Hosts {
 			elapsed[task] = 0
 			wg.Add(1)
-			go run(&wg, NewContext(task, job.Fqdn(host), job.UseTty), job)
+			go run(&wg, NewContext(task, job.Fqdn(host), job.UseTty, job.User), job)
 			task += 1
 		}
 	}
