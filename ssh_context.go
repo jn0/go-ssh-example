@@ -176,7 +176,7 @@ func (context *Context) authMethods() []ssh.AuthMethod {
 	return auth
 }
 
-func NewContext(id int, host string, use_term bool) *Context {
+func NewContext(id int, host string, use_term bool, force_user string) *Context {
 	u, err := user.Current()
 	if err != nil {
 		log.Fatal("[%d] No current user: %v", id, err)
@@ -192,6 +192,10 @@ func NewContext(id int, host string, use_term bool) *Context {
 		UseTty:       use_term,
 		ForwardAgent: cf.GetValue(host, "ForwardAgent", "no") == "yes",
 		Config:       cf,
+	}
+	if force_user != "" {
+		cx.User = force_user
+		cx.Gecos = "enforced " + force_user
 	}
 	cx.Ssh.Agent = newSshAgentClient()
 	cx.Ssh.ClientConfig = &ssh.ClientConfig{

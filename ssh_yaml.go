@@ -15,6 +15,7 @@ type Job struct {
 	CheckFor string   `yaml:"check"`
 	UseTty   bool     `yaml:"tty"`
 	Domain   string   `yaml:"domain"`
+	User     string   `yaml:"user"`
 	Hosts    []string `yaml:"hosts"`
 }
 
