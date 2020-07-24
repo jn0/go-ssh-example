@@ -172,7 +172,7 @@ func main() {
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
 	log.UsePanic(Config.UsePanic)
 
-	if !DirExists(Config.SaveDir) {
+	if Config.SaveDir != "" && !DirExists(Config.SaveDir) {
 		log.Fatal("Cannot save to %q: it does not exist", Config.SaveDir)
 	}
 
