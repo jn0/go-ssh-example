@@ -33,6 +33,26 @@ func (j *Job) Fqdn(name string) string {
 	return name + dom
 }
 
+func (j *Job) View(show func(string)) {
+	show("# JOB FILE #")
+	show("title: " + j.Title)
+	show("command: " + j.Command)
+	if j.CheckFor != "" {
+		show("check: " + j.CheckFor)
+	}
+	if j.UseTty {
+		show("tty: true")
+	}
+	if j.Domain != "" {
+		show("domain: " + j.Domain)
+	}
+	show("hosts:")
+	for _, h := range j.Hosts {
+		show("\t- " + h)
+	}
+	show("# EOF #")
+}
+
 func DirExists(name string) bool {
 	fi, err := os.Stat(name)
 	return err == nil && fi.IsDir()

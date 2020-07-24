@@ -123,6 +123,19 @@ func main() {
 	flag.Parse()
 	defer log.Debug("Done")
 
+	if Config.ListDir && flag.NArg() > 0 {
+		for _, arg := range flag.Args() {
+			job, err := LoadYaml(arg, Config.DefaultDir)
+			if err != nil {
+				os.Stderr.Write([]byte(arg + ": " + err.Error() + "\n"))
+				continue
+			}
+			job.View(func(line string) {
+				os.Stdout.Write([]byte(line + "\n"))
+			})
+		}
+		return
+	}
 	if Config.ListDir || flag.NArg() == 0 {
 		ListYaml(Config.DefaultDir, func(pth, title string) {
 			os.Stdout.Write([]byte(strings.TrimSuffix(path.Base(pth), ".yaml") +
@@ -145,6 +158,11 @@ func main() {
 		job, err := LoadYaml(arg, Config.DefaultDir)
 		if err != nil {
 			log.Error("Cannot read %q: %v", arg, err)
+			continue
+		}
+
+		if job.Command == "" || len(job.Hosts) == 0 {
+			log.Warn("Nothing to do in %q (%s)", arg, job.Title)
 			continue
 		}
 
