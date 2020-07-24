@@ -77,21 +77,30 @@ func ListYaml(dir string, show func(string, string)) {
 	})
 }
 
+func YamlFile(name, deflt string) string {
+	if FileExists(name) {
+		return name
+	}
+	if !DirExists(deflt) {
+		return ""
+	}
+	name = filepath.Join(deflt, name)
+	if !FileExists(name) {
+		name += ".yaml"
+	}
+	if !FileExists(name) {
+		return ""
+	}
+	return name
+}
+
 func LoadYaml(name, deflt string) (*Job, error) {
 
-	if !FileExists(name) {
-		if !DirExists(deflt) {
-			return nil, os.ErrNotExist
-		}
-		name = filepath.Join(deflt, name)
-		if !FileExists(name) {
-			name += ".yaml"
-		}
-		if !FileExists(name) {
-			return nil, os.ErrNotExist
-		}
-		log.Debug("Will read %q", name)
+	name = YamlFile(name, deflt)
+	if name == "" {
+		return nil, os.ErrNotExist
 	}
+	log.Debug("Will read %q", name)
 
 	data, err := ioutil.ReadFile(name)
 	if err != nil {
