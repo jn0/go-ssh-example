@@ -5,7 +5,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -123,33 +122,6 @@ func FindHostKey(path, host string) ssh.PublicKey {
 			return hostKey
 		}
 	}
-	return nil
-}
-
-func FindHostKeyByContext(context map[string]string) ssh.PublicKey {
-	path := FindHostKeyFile("")
-	log.Debug("Host keys from %q", path)
-
-	var tries []string
-
-	host, ok := context["host"]
-	if !ok {
-		log.Fatal("No \"host\" entry in context %v", context)
-	}
-	tries = append(tries, host)
-
-	port, ok := context["port"]
-	if ok {
-		tries = append(tries, fmt.Sprintf("[%s]:%s", host, port))
-	}
-
-	for _, pattern := range tries {
-		r := FindHostKey(path, pattern)
-		if r != nil {
-			return r
-		}
-	}
-	log.Warn("No key for host %q", host)
 	return nil
 }
 

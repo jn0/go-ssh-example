@@ -10,11 +10,27 @@ import (
 )
 
 type Job struct {
-	Title   string   `yaml:"title"`
-	Command string   `yaml:"command"`
-	UseTty  bool     `yaml:"tty"`
-	Domain  string   `yaml:"domain"`
-	Hosts   []string `yaml:"hosts"`
+	Title    string   `yaml:"title"`
+	Command  string   `yaml:"command"`
+	CheckFor string   `yaml:"check"`
+	UseTty   bool     `yaml:"tty"`
+	Domain   string   `yaml:"domain"`
+	Hosts    []string `yaml:"hosts"`
+}
+
+func (j *Job) Check(text string) bool {
+	return j.CheckFor == "" || strings.Contains(text, j.CheckFor)
+}
+
+func (j *Job) Fqdn(name string) string {
+	dom := ""
+	if j.Domain != "" {
+		if !strings.HasPrefix(j.Domain, ".") {
+			dom = "."
+		}
+		dom += j.Domain
+	}
+	return name + dom
 }
 
 func DirExists(name string) bool {
@@ -65,18 +81,6 @@ func LoadYaml(name, deflt string) (*Job, error) {
 	err = yaml.Unmarshal(data, &job)
 	if err != nil {
 		return nil, err
-	}
-
-	dom := ""
-	if job.Domain != "" {
-		if !strings.HasPrefix(job.Domain, ".") {
-			dom = "."
-		}
-		dom += job.Domain
-	}
-
-	for i, host := range job.Hosts {
-		job.Hosts[i] = host + dom
 	}
 
 	return &job, nil

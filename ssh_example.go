@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -62,20 +63,44 @@ func totals() (failed int, total time.Duration) {
 	return
 }
 
-func run(wg *sync.WaitGroup, task int, context map[string]string, command string) {
-	log.Info("[%d] @%q: %q", task, context["host"], command)
+func show_output(task int, host, text string) {
+	lines := strings.Split(text, "\n")
+	nl := len(lines)
+	digits := 0
+	for nl > 0 {
+		digits += 1
+		nl /= 10
+	}
+	prefix := host + ":" + strconv.FormatInt(int64(task), 10) + ":"
+	for _, line := range lines {
+		os.Stdout.Write([]byte(prefix + line + "\n"))
+	}
+}
+
+func run(wg *sync.WaitGroup, context *Context, job *Job) {
+	log.Info("[%d] @%q: %q", context.Id, context.Host, job.Command)
 	t1 := time.Now()
-	out, err := RunCommandOverSsh(context, command)
+	out, err := context.Run(job.Command)
 	t2 := time.Now()
 	e := color.Green("ok")
+	ok := true
 	f := log.Info
 	if err != nil {
 		e = color.Red(err.Error())
 		f = log.Warn
+		ok = false
 	}
 	dt := t2.Sub(t1)
-	elapse(task, dt, err)
-	f("[%d] @%q: %q (%v) %s", task, context["host"], out, e, dt)
+	elapse(context.Id, dt, err)
+	if !job.Check(out) {
+		e = color.BrightYellow("output check failed")
+		f = log.Warn
+		ok = false
+	}
+	f("[%d] @%q: %v, %s", context.Id, context.Host, e, dt)
+	if !ok {
+		show_output(context.Id, context.Host, out)
+	}
 	wg.Done()
 }
 
@@ -98,7 +123,7 @@ func main() {
 	flag.Parse()
 	defer log.Debug("Done")
 
-	if Config.ListDir {
+	if Config.ListDir || flag.NArg() == 0 {
 		ListYaml(Config.DefaultDir, func(pth, title string) {
 			os.Stdout.Write([]byte(strings.TrimSuffix(path.Base(pth), ".yaml") +
 				"\t" + title + "\n"))
@@ -125,9 +150,8 @@ func main() {
 
 		for _, host := range job.Hosts {
 			elapsed[task] = 0
-			context := NewContext(host, job.UseTty)
 			wg.Add(1)
-			go run(&wg, task, context, job.Command)
+			go run(&wg, NewContext(task, job.Fqdn(host), job.UseTty), job)
 			task += 1
 		}
 	}
