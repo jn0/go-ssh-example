@@ -85,14 +85,14 @@ func run(wg *sync.WaitGroup, context *Context, job *Job) {
 	e := color.Green("ok")
 	ok := true
 	f := log.Info
-	if err != nil {
+	if ok && err != nil {
 		e = color.Red(err.Error())
 		f = log.Warn
 		ok = false
 	}
 	dt := t2.Sub(t1)
 	elapse(context.Id, dt, err)
-	if !job.Check(out) {
+	if ok && !job.Check(out) {
 		e = color.BrightYellow("output check failed")
 		f = log.Warn
 		ok = false
