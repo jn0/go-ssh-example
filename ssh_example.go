@@ -114,7 +114,7 @@ func main() {
 	}
 	flag.StringVar(&Config.DefaultDir, "dir", Config.DefaultDir,
 		"default directory for yaml scripts")
-	flag.BoolVar(&Config.ListDir, "list", false, "list the <dir>")
+	flag.BoolVar(&Config.ListDir, "list", false, "list the <dir> or its entry")
 
 	flag.BoolVar(&Config.UsePanic, "log-panic", false, "use panic() for fatals")
 	flag.StringVar(&Config.LogLevel, "log-level", "INFO", "log level")
@@ -123,7 +123,14 @@ func main() {
 	flag.Parse()
 	defer log.Debug("Done")
 
-	if Config.ListDir && flag.NArg() > 0 {
+	if flag.NArg() == 0 {
+		ListYaml(Config.DefaultDir, func(pth, title string) {
+			os.Stdout.Write([]byte(strings.TrimSuffix(path.Base(pth), ".yaml") +
+				"\t" + title + "\n"))
+		})
+		return
+	}
+	if Config.ListDir {
 		for _, arg := range flag.Args() {
 			job, err := LoadYaml(arg, Config.DefaultDir)
 			if err != nil {
@@ -134,13 +141,6 @@ func main() {
 				os.Stdout.Write([]byte(line + "\n"))
 			})
 		}
-		return
-	}
-	if Config.ListDir || flag.NArg() == 0 {
-		ListYaml(Config.DefaultDir, func(pth, title string) {
-			os.Stdout.Write([]byte(strings.TrimSuffix(path.Base(pth), ".yaml") +
-				"\t" + title + "\n"))
-		})
 		return
 	}
 
