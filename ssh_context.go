@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -25,6 +26,10 @@ type Context struct {
 		ClientConfig *ssh.ClientConfig
 		Client       *ssh.Client
 		session      *ssh.Session
+	}
+	Time struct {
+		Start time.Time
+		Stop  time.Time
 	}
 }
 
@@ -49,7 +54,9 @@ func (context *Context) Run(command string, args ...string) (out string, err err
 		log.Info("[%d] Got %q", context.Id, out.String())
 	*/
 
+	context.Time.Start = time.Now()
 	data, err := context.Ssh.session.CombinedOutput(cmd)
+	context.Time.Stop = time.Now()
 	if err != nil {
 		log.Debug("[%d] SSH session (%q): %v", context.Id, cmd, err)
 	}
