@@ -19,6 +19,7 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -78,6 +79,24 @@ func show_output(task int, host, text string) {
 	}
 }
 
+func save_output(context *Context, command, out string) {
+	if Config.SaveDir == "" {
+		return
+	}
+	fname := filepath.Join(Config.SaveDir, context.Host)
+	data := "# Host:    " + context.Host + "\n" +
+		"# Command: " + command + "\n" +
+		"# User:    " + context.User + " (" + context.Gecos + ")\n" +
+		"# Started: " + context.Time.Start.String() + "\n" +
+		"# Ended:   " + context.Time.Stop.String() + "\n" +
+		"# Elapsed: " + context.Time.Stop.Sub(context.Time.Start).String() + "\n" +
+		"\n" + out + "\n### EOF ###\n"
+	err := ioutil.WriteFile(fname, []byte(data), 0640)
+	if err != nil {
+		log.Error("[%d] Cannot save %q: %v", context.Id, fname, err)
+	}
+}
+
 func run(wg *sync.WaitGroup, context *Context, job *Job) {
 	log.Info("[%d] @%q: %q", context.Id, context.Host, job.Command)
 	t1 := time.Now()
@@ -99,6 +118,7 @@ func run(wg *sync.WaitGroup, context *Context, job *Job) {
 		ok = false
 	}
 	f("[%d] @%q: %v, %s", context.Id, context.Host, e, dt)
+	save_output(context, job.Command, out)
 	if !ok {
 		show_output(context.Id, context.Host, out)
 	}
