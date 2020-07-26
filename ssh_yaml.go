@@ -5,11 +5,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/juju/fslock"
 
 	"gopkg.in/yaml.v2"
 )
 
+const LOCK_TIMEOUT = 500 * time.Millisecond
+
 type Job struct {
+	lock     *fslock.Lock
+	Filename string
 	Title    string   `yaml:"title"`
 	Command  string   `yaml:"command"`
 	CheckFor string   `yaml:"check"`
@@ -19,6 +26,22 @@ type Job struct {
 	Before   string   `yaml:"before"`
 	After    string   `yaml:"after"`
 	Hosts    []string `yaml:"hosts"`
+}
+
+func (j *Job) Lock() {
+	if j.lock == nil {
+		j.lock = fslock.New(j.Filename)
+	}
+	err := j.lock.LockWithTimeout(LOCK_TIMEOUT)
+	if err != nil {
+		log.Fatal("Cannot lock %q: %v", j.Filename, err)
+	}
+}
+func (j *Job) Unlock() {
+	err := j.lock.Unlock()
+	if err != nil {
+		log.Fatal("Cannot unlock %q: %v", j.Filename, err)
+	}
 }
 
 func (j *Job) Check(text string) bool {
@@ -37,17 +60,17 @@ func (j *Job) Fqdn(name string) string {
 }
 
 func (j *Job) View(show func(string)) {
-	show("# JOB FILE #")
+	show("# JOB FILE " + j.Filename + " #")
 	show("title: " + j.Title)
 	if j.Before != "" {
 		show("before: " + j.Before)
 	}
 	show("command: " + j.Command)
-	if j.CheckFor != "" {
-		show("check: " + j.CheckFor)
-	}
 	if j.After != "" {
 		show("after: " + j.After)
+	}
+	if j.CheckFor != "" {
+		show("check: " + j.CheckFor)
 	}
 	if j.UseTty {
 		show("tty: true")
@@ -59,7 +82,7 @@ func (j *Job) View(show func(string)) {
 	for _, h := range j.Hosts {
 		show("\t- " + h)
 	}
-	show("# EOF #")
+	show("# EOF " + j.Filename + " #")
 }
 
 func DirExists(name string) bool {
@@ -120,6 +143,7 @@ func LoadYaml(name, deflt string) (*Job, error) {
 	if err != nil {
 		return nil, err
 	}
+	job.Filename = name
 
 	return &job, nil
 }

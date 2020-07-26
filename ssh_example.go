@@ -251,6 +251,45 @@ func main() {
 		log.Fatal("Cannot save to %q: it does not exist", Config.SaveDir)
 	}
 
+	var do_the_job = func(task *int, job *Job, wg *sync.WaitGroup) {
+		job.Lock()
+		defer func() {
+			job.Unlock()
+			wg.Done()
+			err := recover()
+			if err != nil {
+				log.Fatal("%v", err)
+			}
+		}()
+
+		if job.Before != "" {
+			log.Info("Before %q performing %q", job.Title, job.Before)
+			err := bash(job.Before)
+			if err != nil {
+				panic(errors.New(fmt.Sprintf("Job %q failed in prephase: %v",
+					job.Title, err)))
+			}
+		}
+
+		wgx := sync.WaitGroup{}
+		for _, host := range job.Hosts {
+			elapsed[*task] = 0
+			wgx.Add(1)
+			go run(&wgx, NewContext(*task, job.Fqdn(host), job.UseTty, job.User), job)
+			*task += 1
+		}
+		wgx.Wait()
+
+		if job.After != "" {
+			log.Info("After %q performing %q", job.Title, job.After)
+			err := bash(job.After)
+			if err != nil {
+				panic(errors.New(fmt.Sprintf("Job %q failed in cleanup: %v",
+					job.Title, err)))
+			}
+		}
+	}
+
 	task := 0
 	elapsed = make(map[int]time.Duration)
 	result = make(map[int]error)
@@ -268,26 +307,8 @@ func main() {
 			continue
 		}
 
-		if job.Before != "" {
-			err := bash(job.Before)
-			if err != nil {
-				log.Fatal("Job %q failed in prephase: %v", job.Title, err)
-			}
-		}
-
-		for _, host := range job.Hosts {
-			elapsed[task] = 0
-			wg.Add(1)
-			go run(&wg, NewContext(task, job.Fqdn(host), job.UseTty, job.User), job)
-			task += 1
-		}
-
-		if job.After != "" {
-			err := bash(job.After)
-			if err != nil {
-				log.Fatal("Job %q failed in cleanup: %v", job.Title, err)
-			}
-		}
+		wg.Add(1)
+		go do_the_job(&task, job, &wg)
 	}
 	t2 := time.Now()
 
