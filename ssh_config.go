@@ -170,6 +170,9 @@ func (self *SshConfig) Load(name string) {
 	if err != nil {
 		log.Fatal("SSH config file %q: %v", name, err)
 	}
+	if cfg == nil {
+		return
+	}
 	log.Debug("SSH config file %q has %d host entries", cfg.Name(), cfg.Len())
 	*self = append(*self, cfg)
 }

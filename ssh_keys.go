@@ -20,6 +20,10 @@ func AskPass(prompt string) []byte {
 
 func LoadPrivateKey() ssh.Signer {
 	id_rsa := FindSshPvtKeyFile("")
+	if id_rsa == "" {
+		log.Warn("No private key file here")
+		return nil
+	}
 	pem, err := ioutil.ReadFile(id_rsa)
 	if err != nil {
 		log.Fatal("Cannot read %q: %v", id_rsa, err)
@@ -43,6 +47,10 @@ func LoadPrivateKey() ssh.Signer {
 
 func LoadPublicKey() ssh.PublicKey {
 	id_rsa := FindSshPubKeyFile("")
+	if id_rsa == "" {
+		log.Warn("No public key file here")
+		return nil
+	}
 	pem, err := ioutil.ReadFile(id_rsa)
 	if err != nil {
 		log.Fatal("Cannot read %q: %v", id_rsa, err)

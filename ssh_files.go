@@ -21,64 +21,93 @@ const (
 
 /*============================================================================*/
 
-func findSshFile(username, filename string) (path string, err error) {
-	var u *user.User
-	if username != "" {
-		u, err = user.Lookup(username)
+func getSshUser(name string) (u *user.User, err error) {
+	if name != "" {
+		u, err = user.Lookup(name)
 		if err != nil {
-			log.Error("User %q lookup error: %v", username, err)
-			return
+			log.Error("User %q lookup error: %v", name, err)
+			return nil, err
 		}
 	} else {
 		u, err = user.Current()
 		if err != nil {
 			log.Error("Current user lookup error: %v", err)
-			return
+			return nil, err
 		}
+	}
+	log.Debug("ssh user %q -> %q", name, u.Username)
+	return u, nil
+}
+
+func findSshFile(username, filename string) (path string, err error) {
+	u, err := getSshUser(username)
+	if u == nil {
+		return
 	}
 	path = fpth.Join(u.HomeDir, filename)
 	_, err = os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
 		log.Warn("No file %q", path)
+		path = ""
 	}
 	return
 }
 
-func FindHostKeyFile(username string) string {
-	path, err := findSshFile(username, DefaultSshKnownHosts)
-	if err != nil {
-		log.Fatal("Cannot find known hosts %q for user %q in %q: %v",
-			DefaultSshKnownHosts, username, path, err)
+func FindHostKeyFile(username string) (path string) {
+	u, err := getSshUser(username)
+	if u == nil {
+		return
 	}
-	return path
+	path, err = findSshFile(u.Username, DefaultSshKnownHosts)
+	if err != nil {
+		log.Warn("Cannot find known hosts %q for user %q in %q: %v",
+			DefaultSshKnownHosts, u.Username, path, err)
+		path = ""
+	}
+	return
 }
 
-func FindSshPubKeyFile(username string) string {
-	path, err := findSshFile(username, DefaultSshKeyFile+DefaultSshKeyFilePubSuffix)
+func FindSshPubKeyFile(username string) (path string) {
+	u, err := getSshUser(username)
+	if u == nil {
+		return
+	}
+	path, err = findSshFile(u.Username, DefaultSshKeyFile+DefaultSshKeyFilePubSuffix)
 	if err != nil {
-		log.Fatal("Cannot find pub key %q for user %q in %q: %v",
+		log.Warn("Cannot find pub key %q for user %q in %q: %v",
 			DefaultSshKeyFile+DefaultSshKeyFilePubSuffix,
-			username, path, err)
+			u.Username, path, err)
+		path = ""
 	}
-	return path
+	return
 }
 
-func FindSshPvtKeyFile(username string) string {
-	path, err := findSshFile(username, DefaultSshKeyFile)
-	if err != nil {
-		log.Fatal("Cannot find key %q for user %q in %q: %v",
-			DefaultSshKeyFile, username, path, err)
+func FindSshPvtKeyFile(username string) (path string) {
+	u, err := getSshUser(username)
+	if u == nil {
+		return
 	}
-	return path
+	path, err = findSshFile(u.Username, DefaultSshKeyFile)
+	if err != nil {
+		log.Warn("Cannot find key %q for user %q in %q: %v",
+			DefaultSshKeyFile, u.Username, path, err)
+		path = ""
+	}
+	return
 }
 
-func FindSshConfigFile(username string) string {
-	path, err := findSshFile(username, DefaultSshConfigFile)
-	if err != nil {
-		log.Fatal("Cannot find config %q for user %q in %q: %v",
-			DefaultSshConfigFile, username, path, err)
+func FindSshConfigFile(username string) (path string) {
+	u, err := getSshUser(username)
+	if u == nil {
+		return
 	}
-	return path
+	path, err = findSshFile(u.Username, DefaultSshConfigFile)
+	if err != nil {
+		log.Warn("Cannot find config %q for user %q in %q: %v",
+			DefaultSshConfigFile, u.Username, path, err)
+		path = ""
+	}
+	return
 }
 
 /*============================================================================*/
@@ -102,6 +131,10 @@ func LoadSshConfigFile(name string) (cfg *SshConfigFile, e error) {
 	fname := name
 	if name == "" || name == DefaultSshConfigFile {
 		fname = FindSshConfigFile("")
+		if fname == "" {
+			log.Warn("No SSH config")
+			return
+		}
 	}
 
 	bytes, e := ioutil.ReadFile(fname)

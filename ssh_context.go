@@ -153,6 +153,10 @@ func (context *Context) findHostKey() ssh.PublicKey {
 
 	path := FindHostKeyFile("")
 	log.Debug("[%d] Host keys from %q", context.Id, path)
+	if path == "" {
+		log.Warn("[%d] No key file for host %q", context.Id, context.Host)
+		return nil
+	}
 
 	var tries []string
 
