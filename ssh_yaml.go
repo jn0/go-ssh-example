@@ -16,6 +16,8 @@ type Job struct {
 	UseTty   bool     `yaml:"tty"`
 	Domain   string   `yaml:"domain"`
 	User     string   `yaml:"user"`
+	Before   string   `yaml:"before"`
+	After    string   `yaml:"after"`
 	Hosts    []string `yaml:"hosts"`
 }
 
@@ -37,9 +39,15 @@ func (j *Job) Fqdn(name string) string {
 func (j *Job) View(show func(string)) {
 	show("# JOB FILE #")
 	show("title: " + j.Title)
+	if j.Before != "" {
+		show("before: " + j.Before)
+	}
 	show("command: " + j.Command)
 	if j.CheckFor != "" {
 		show("check: " + j.CheckFor)
+	}
+	if j.After != "" {
+		show("after: " + j.After)
 	}
 	if j.UseTty {
 		show("tty: true")

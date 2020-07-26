@@ -129,6 +129,23 @@ func run(wg *sync.WaitGroup, context *Context, job *Job) {
 	wg.Done()
 }
 
+func bash(args ...string) error {
+	cmd := exec.Command("bash", "-c")
+	if !FileExists(cmd.Path) {
+		return errors.New(fmt.Sprintf("No %q", cmd.Path))
+	}
+	cmd.Args = append(cmd.Args, strings.Join(args, " "))
+	log.Debug("%q %#v", cmd.Path, cmd.Args)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error running %q: %v", cmd.Path, err))
+	}
+	return nil
+}
+
 var envEditorNames = []string{"VISUAL", "EDITOR"}
 
 func _edit(editor, file string) error {
@@ -251,11 +268,25 @@ func main() {
 			continue
 		}
 
+		if job.Before != "" {
+			err := bash(job.Before)
+			if err != nil {
+				log.Fatal("Job %q failed in prephase: %v", job.Title, err)
+			}
+		}
+
 		for _, host := range job.Hosts {
 			elapsed[task] = 0
 			wg.Add(1)
 			go run(&wg, NewContext(task, job.Fqdn(host), job.UseTty, job.User), job)
 			task += 1
+		}
+
+		if job.After != "" {
+			err := bash(job.After)
+			if err != nil {
+				log.Fatal("Job %q failed in cleanup: %v", job.Title, err)
+			}
 		}
 	}
 	t2 := time.Now()
