@@ -96,7 +96,7 @@ func (j *Job) View(show func(string)) {
 	text_or_comment("domain", j.Domain, "example.com")
 	show("hosts:")
 	for _, h := range j.Hosts {
-		show("\t- " + h)
+		show("    - " + h)
 	}
 	show("# EOF " + j.Filename + " #")
 }
