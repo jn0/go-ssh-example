@@ -61,30 +61,33 @@ func (j *Job) Fqdn(name string) string {
 
 func (j *Job) View(show func(string)) {
 	show("# JOB FILE " + j.Filename + " #")
-	show("title: " + j.Title)
 
-	if j.Before != "" {
-		show("before: " + j.Before)
+	var text_or_comment = func(name, value, stub string) {
+		if value != "" {
+			show(name + ": " + value)
+		} else {
+			show("# " + name + ": " + stub)
+		}
 	}
-	show("command: " + j.Command)
-	if j.After != "" {
-		show("after: " + j.After)
-	}
-
-	if j.UseTty {
-		show("tty: true")
-	}
-	if j.User != "" {
-		show("user: " + j.User)
-	}
-
-	if j.CheckFor != "" {
-		show("check: " + j.CheckFor)
+	var bool_or_comment = func(name string, value bool) {
+		if value {
+			show(name + ": true")
+		} else {
+			show("# " + name + ": false")
+		}
 	}
 
-	if j.Domain != "" {
-		show("domain: " + j.Domain)
-	}
+	text_or_comment("title", j.Title, strings.Title(strings.TrimSuffix(filepath.Base(j.Filename), ".yaml")))
+	text_or_comment("before", j.Before, "/bin/true")
+	text_or_comment("command", j.Command, "/bin/false")
+	text_or_comment("after", j.After, "/bin/true")
+
+	bool_or_comment("tty", j.UseTty)
+	text_or_comment("user", j.User, "<current user>")
+
+	text_or_comment("check", j.CheckFor, "<nothing special>")
+
+	text_or_comment("domain", j.Domain, "example.com")
 	show("hosts:")
 	for _, h := range j.Hosts {
 		show("\t- " + h)
