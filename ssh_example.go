@@ -45,9 +45,10 @@ var Config struct {
 	UsePanic   bool
 	NoColor    bool
 	Edit       bool
+	//
+	Color aurora.Aurora
 }
 
-var color aurora.Aurora
 var lock_elapsed sync.Mutex
 var elapsed map[int]time.Duration
 var result map[int]error
@@ -106,18 +107,18 @@ func run(wg *sync.WaitGroup, context *Context, job *Job) {
 	t1 := time.Now()
 	out, err := context.Run(job.Command)
 	t2 := time.Now()
-	e := color.Green("ok")
+	e := Config.Color.Green("ok")
 	ok := true
 	f := log.Info
 	if ok && err != nil {
-		e = color.Red(err.Error())
+		e = Config.Color.Red(err.Error())
 		f = log.Warn
 		ok = false
 	}
 	dt := t2.Sub(t1)
 	elapse(context.Id, dt, err)
 	if ok && !job.Check(out) {
-		e = color.BrightYellow("output check failed")
+		e = Config.Color.BrightYellow("output check failed")
 		f = log.Warn
 		ok = false
 	}
@@ -202,7 +203,7 @@ func main() {
 
 	flag.BoolVar(&Config.UsePanic, "log-panic", false, "use panic() for fatals")
 	flag.StringVar(&Config.LogLevel, "log-level", "INFO", "log level")
-	flag.BoolVar(&Config.NoColor, "log-color", false, "disable log colors")
+	flag.BoolVar(&Config.NoColor, "log-Config.Color", false, "disable log colors")
 
 	flag.StringVar(&Config.SaveDir, "save", Config.SaveDir, "directory to save output to")
 	flag.BoolVar(&Config.Edit, "edit", false, "run editor on the yaml")
@@ -210,7 +211,7 @@ func main() {
 	flag.Parse()
 	defer log.Debug("Done")
 
-	color = aurora.NewAurora(!Config.NoColor)
+	Config.Color = aurora.NewAurora(!Config.NoColor)
 
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
 	log.UsePanic(Config.UsePanic)
