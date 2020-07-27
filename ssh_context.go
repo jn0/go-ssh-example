@@ -54,6 +54,8 @@ func (context *Context) Run(command string, args ...string) (out string, err err
 		log.Info("[%d] Got %q", context.Id, out.String())
 	*/
 
+	// context.Ssh.session.Setenv("name", "value")
+
 	context.Time.Start = time.Now()
 	data, err := context.Ssh.session.CombinedOutput(cmd)
 	context.Time.Stop = time.Now()

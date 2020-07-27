@@ -17,15 +17,15 @@ const LOCK_TIMEOUT = 500 * time.Millisecond
 type Job struct {
 	lock     *fslock.Lock
 	Filename string
-	Title    string   `yaml:"title"`
-	Command  string   `yaml:"command"`
-	CheckFor string   `yaml:"check"`
-	UseTty   bool     `yaml:"tty"`
-	Domain   string   `yaml:"domain"`
-	User     string   `yaml:"user"`
-	Before   string   `yaml:"before"`
-	After    string   `yaml:"after"`
-	Hosts    []string `yaml:"hosts"`
+	Title    string   `yaml:"title"`   // job title
+	Command  string   `yaml:"command"` // job command
+	CheckFor string   `yaml:"check"`   // find this in output, optional
+	UseTty   bool     `yaml:"tty"`     // request ssh tty, optional
+	Domain   string   `yaml:"domain"`  // domain suffix for <hosts>
+	User     string   `yaml:"user"`    // ssh user, normally absent
+	Before   string   `yaml:"before"`  // setup command, optional
+	After    string   `yaml:"after"`   // cleanup command, optional
+	Hosts    []string `yaml:"hosts"`   // list of hosts to run the <command> on
 }
 
 func (j *Job) Lock() {
@@ -62,6 +62,7 @@ func (j *Job) Fqdn(name string) string {
 func (j *Job) View(show func(string)) {
 	show("# JOB FILE " + j.Filename + " #")
 	show("title: " + j.Title)
+
 	if j.Before != "" {
 		show("before: " + j.Before)
 	}
@@ -69,12 +70,18 @@ func (j *Job) View(show func(string)) {
 	if j.After != "" {
 		show("after: " + j.After)
 	}
-	if j.CheckFor != "" {
-		show("check: " + j.CheckFor)
-	}
+
 	if j.UseTty {
 		show("tty: true")
 	}
+	if j.User != "" {
+		show("user: " + j.User)
+	}
+
+	if j.CheckFor != "" {
+		show("check: " + j.CheckFor)
+	}
+
 	if j.Domain != "" {
 		show("domain: " + j.Domain)
 	}
