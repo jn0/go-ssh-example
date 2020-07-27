@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ const LOCK_TIMEOUT = 500 * time.Millisecond
 type Job struct {
 	lock     *fslock.Lock
 	Filename string
+	// YAML fillable:
 	Title    string   `yaml:"title"`   // job title
 	Command  string   `yaml:"command"` // job command
 	CheckFor string   `yaml:"check"`   // find this in output, optional
@@ -26,6 +28,10 @@ type Job struct {
 	Before   string   `yaml:"before"`  // setup command, optional
 	After    string   `yaml:"after"`   // cleanup command, optional
 	Hosts    []string `yaml:"hosts"`   // list of hosts to run the <command> on
+}
+
+func (j *Job) Error(text string, err error) error {
+	return fmt.Errorf("Job %q failed in %s: %v", j.Title, text, err)
 }
 
 func (j *Job) Lock() {

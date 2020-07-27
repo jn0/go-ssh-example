@@ -266,8 +266,7 @@ func main() {
 			log.Info("Before %q performing %q", job.Title, job.Before)
 			err := bash(job.Before)
 			if err != nil {
-				panic(errors.New(fmt.Sprintf("Job %q failed in prephase: %v",
-					job.Title, err)))
+				panic(job.Error("setup", err))
 			}
 		}
 
@@ -284,8 +283,7 @@ func main() {
 			log.Info("After %q performing %q", job.Title, job.After)
 			err := bash(job.After)
 			if err != nil {
-				panic(errors.New(fmt.Sprintf("Job %q failed in cleanup: %v",
-					job.Title, err)))
+				panic(job.Error("cleanup", err))
 			}
 		}
 	}
