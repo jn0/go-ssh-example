@@ -33,6 +33,7 @@ import (
 
 	logging "github.com/jn0/go-log"
 	"github.com/logrusorgru/aurora"
+	"golang.org/x/sys/unix"
 )
 
 var log = logging.Root
@@ -52,6 +53,12 @@ var Config struct {
 var lock_elapsed sync.Mutex
 var elapsed map[int]time.Duration
 var result map[int]error
+
+func IsAtty(f *os.File) bool {
+	var fd uintptr = f.Fd()
+	_, err := unix.IoctlGetTermios(int(fd), unix.TCGETS)
+	return err == nil
+}
 
 func elapse(task int, d time.Duration, e error) {
 	lock_elapsed.Lock()
@@ -211,7 +218,7 @@ func main() {
 	flag.Parse()
 	defer log.Debug("Done")
 
-	Config.Color = aurora.NewAurora(!Config.NoColor)
+	Config.Color = aurora.NewAurora(IsAtty(os.Stdout) && !Config.NoColor)
 
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
 	log.UsePanic(Config.UsePanic)
@@ -229,8 +236,10 @@ func main() {
 
 	if flag.NArg() == 0 {
 		ListYaml(Config.DefaultDir, func(pth, title string) {
-			os.Stdout.Write([]byte(strings.TrimSuffix(path.Base(pth), ".yaml") +
-				"\t" + title + "\n"))
+			file := strings.TrimSuffix(path.Base(pth), ".yaml")
+			file = Config.Color.BrightCyan(file).String()
+			title = Config.Color.Yellow(title).String()
+			os.Stdout.Write([]byte(file + "\t" + title + "\n"))
 		})
 		return
 	}
