@@ -157,6 +157,7 @@ func bash(args ...string) error {
 var envEditorNames = []string{"VISUAL", "EDITOR"}
 
 func _edit(editor, file string) error {
+	log.Debug("Trying %q on %q", editor, file)
 	cmd := exec.Command(editor, file)
 	if !FileExists(cmd.Path) {
 		return errors.New(fmt.Sprintf("No %q", cmd.Path))
@@ -175,6 +176,7 @@ func _edit(editor, file string) error {
 const TheEditor = "vi"
 
 func edit(name string) {
+	log.Debug("Trying to edit %q", name)
 	if name == "" {
 		return
 	}
@@ -225,10 +227,33 @@ func main() {
 
 	if Config.Edit {
 		if flag.NArg() == 0 {
+			if !DirExists(Config.DefaultDir) {
+				err := os.MkdirAll(Config.DefaultDir, 0750)
+				if err != nil {
+					log.Fatal("Cannot make directory %q: %v",
+						Config.DefaultDir, err)
+				}
+				log.Info("The %q has been created", Config.DefaultDir)
+			}
 			edit(Config.DefaultDir)
 		} else {
 			for _, arg := range flag.Args() {
-				edit(YamlFile(arg, Config.DefaultDir))
+				yaml := YamlFile(arg, Config.DefaultDir)
+				if yaml == "" {
+					if !DirExists(Config.DefaultDir) {
+						err := os.MkdirAll(Config.DefaultDir, 0750)
+						if err != nil {
+							log.Fatal("Cannot make directory %q: %v",
+								Config.DefaultDir, err)
+						}
+						log.Info("The %q has been created", Config.DefaultDir)
+					}
+					yaml = filepath.Join(Config.DefaultDir, arg)
+					if !strings.HasSuffix(yaml, ".yaml") {
+						yaml += ".yaml"
+					}
+				}
+				edit(yaml)
 			}
 		}
 		return
