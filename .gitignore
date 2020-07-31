@@ -1,4 +1,5 @@
 *.yaml
+.go
 
 # Binaries for programs and plugins
 go-ssh-example
