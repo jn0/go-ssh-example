@@ -26,6 +26,7 @@ func _edit(editor, file string) error {
 	return nil
 }
 
+const MailcapEditor = "edit"
 const TheEditor = "vi"
 
 func Edit(name string) {
@@ -40,9 +41,12 @@ func Edit(name string) {
 		}
 		err := _edit(ed, name)
 		if err != nil {
-			log.Warn("%q=%q: %v", ed, ev, err)
+			log.Warn("%q=%q: %v", ev, ed, err)
 			continue
 		}
+		return
+	}
+	if _edit(MailcapEditor, name) == nil {
 		return
 	}
 	if _edit(TheEditor, name) == nil { // last resort
