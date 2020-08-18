@@ -27,7 +27,6 @@ $(GOPATH):	$(GOFILES)
 
 go-ssh-example:	$(GOPATH) $(GOFILES)
 	$(RM) $@
-	$(GO) get -v -u
 	$(GO) build
 
 clean:
