@@ -67,26 +67,22 @@ func (j *Job) Fqdn(name string) string {
 
 func (j *Job) View(show func(string)) {
 
-	comment_c := Config.Color.Cyan
-	name_c := Config.Color.BrightYellow
-	div_c := Config.Color.Red
-
 	var text_or_comment = func(name, value, stub string) {
 		if value != "" {
-			show(name_c(name).String() + div_c(": ").String() + value)
+			show(Config.NameColor(name) + Config.DivColor(": ") + value)
 		} else {
-			show(comment_c("# " + name + ": " + stub).String())
+			show(Config.CommentColor("# " + name + ": " + stub))
 		}
 	}
 	var bool_or_comment = func(name string, value bool) {
 		if value {
-			show(name_c(name).String() + div_c(": ").String() + "true")
+			show(Config.NameColor(name) + Config.DivColor(": ") + "true")
 		} else {
-			show(comment_c("# " + name + ": false").String())
+			show(Config.CommentColor("# " + name + ": false"))
 		}
 	}
 
-	show(comment_c("# JOB FILE " + j.Filename + " #").String())
+	show(Config.CommentColor("# JOB FILE " + j.Filename + " #"))
 	text_or_comment("title", j.Title, strings.Title(strings.TrimSuffix(filepath.Base(j.Filename), ".yaml")))
 	text_or_comment("before", j.Before, "/bin/true")
 	text_or_comment("command", j.Command, "/bin/false")
@@ -98,11 +94,11 @@ func (j *Job) View(show func(string)) {
 	text_or_comment("check", j.CheckFor, "<nothing special>")
 
 	text_or_comment("domain", j.Domain, "example.com")
-	show(name_c("hosts").String() + div_c(":").String())
+	show(Config.NameColor("hosts") + Config.DivColor(":"))
 	for _, h := range j.Hosts {
-		show(div_c("    - ").String() + h)
+		show(Config.DivColor("    - ") + h)
 	}
-	show(comment_c("# EOF " + j.Filename + " #").String())
+	show(Config.CommentColor("# EOF " + j.Filename + " #"))
 }
 
 func DirExists(name string) bool {

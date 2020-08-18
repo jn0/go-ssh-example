@@ -47,7 +47,8 @@ var Config struct {
 	NoColor    bool
 	Edit       bool
 	//
-	Color aurora.Aurora
+	Color                                                                         aurora.Aurora
+	ErrorColor, FileColor, TitleColor, OkColor, CommentColor, NameColor, DivColor func(s string) string
 }
 
 var lock_elapsed sync.Mutex
@@ -116,7 +117,7 @@ func run(wg *sync.WaitGroup, context *Context, job *Job) {
 	out, err := context.Run(job.Command)
 	t2 := time.Now()
 
-	f, e, ok := log.Info, Config.Color.BrightGreen("ok").String(), true
+	f, e, ok := log.Info, Config.OkColor("ok"), true
 	if ok && err != nil {
 		f, e, ok = log.Warn, err.Error(), false
 	}
@@ -178,6 +179,15 @@ func main() {
 
 	Config.Color = aurora.NewAurora(IsAtty(os.Stdout) && !Config.NoColor)
 	log.UseColor(Config.Color)
+	Config.ErrorColor = func(s string) string {
+		return Config.Color.BgRed(Config.Color.BrightWhite(s)).String()
+	}
+	Config.FileColor = func(s string) string { return Config.Color.BrightCyan(s).String() }
+	Config.TitleColor = func(s string) string { return Config.Color.Yellow(s).String() }
+	Config.OkColor = func(s string) string { return Config.Color.BrightGreen(s).String() }
+	Config.CommentColor = func(s string) string { return Config.Color.Cyan(s).String() }
+	Config.NameColor = func(s string) string { return Config.Color.BrightYellow(s).String() }
+	Config.DivColor = func(s string) string { return Config.Color.Red(s).String() }
 
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
 	log.UsePanic(Config.UsePanic)
@@ -219,9 +229,8 @@ func main() {
 	if flag.NArg() == 0 {
 		ListYaml(Config.DefaultDir, func(pth, title string) {
 			file := strings.TrimSuffix(path.Base(pth), ".yaml")
-			file = Config.Color.BrightCyan(file).String()
-			title = Config.Color.Yellow(title).String()
-			os.Stdout.Write([]byte(file + "\t" + title + "\n"))
+			os.Stdout.Write([]byte(Config.FileColor(file) +
+				"\t" + Config.TitleColor(title) + "\n"))
 		})
 		return
 	}
@@ -229,7 +238,7 @@ func main() {
 		for _, arg := range flag.Args() {
 			job, err := LoadYaml(arg, Config.DefaultDir)
 			if err != nil {
-				os.Stderr.Write([]byte(arg + ": " + err.Error() + "\n"))
+				os.Stderr.Write([]byte(Config.ErrorColor(arg+": "+err.Error()) + "\n"))
 				continue
 			}
 			job.View(func(line string) {
