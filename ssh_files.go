@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	fpth "path"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -128,6 +129,8 @@ func LoadSshConfigFile(name string) (cfg *SshConfigFile, e error) {
 		sp = " "
 	)
 
+	log.Debug("Loading %q...", name)
+
 	fname := name
 	if name == "" || name == DefaultSshConfigFile {
 		fname = FindSshConfigFile("")
@@ -150,7 +153,46 @@ func LoadSshConfigFile(name string) (cfg *SshConfigFile, e error) {
 		if IsCommentOrBlank(line) {
 			continue
 		}
+		if strings.HasPrefix(line, "Include") {
+			// Include /etc/ssh/ssh_config.d/*.conf
+			pattern := strings.TrimSpace(line[7:])
+			if pattern == "" {
+				log.Error("%q[%d]: %q - no value", name, i+1, line)
+				continue
+			}
+			list, e := filepath.Glob(pattern)
+			if e != nil {
+				log.Error("%q[%d]: %q - bad pattern (%v)", name, i+1, line, e)
+				continue
+			}
+			if len(list) == 0 {
+				log.Debug("%q[%d]: %q - no files match pattern %q",
+					name, i+1, line, pattern)
+				continue
+			}
+			for _, xname := range list {
+				cf, e := LoadSshConfigFile(xname)
+				if e != nil {
+					log.Error("%q[%d]: %q - subconfig %q error: %v",
+						name, i+1, line, xname, e)
+					continue
+				}
+				if cf == nil {
+					log.Warn("%q[%d]: %q - subconfig %q has no entries",
+						name, i+1, line, xname)
+					continue
+				}
+				if cfg == nil {
+					cfg = cf
+				} else {
+					cfg.Append(cf)
+				}
+				cf = nil
+			}
+			continue
+		}
 		if strings.HasPrefix(line, "Host") {
+			// Host *
 			if !entry.IsNull() {
 				if cfg == nil {
 					cfg = new(SshConfigFile).SetName(fname)
@@ -178,7 +220,7 @@ func LoadSshConfigFile(name string) (cfg *SshConfigFile, e error) {
 		}
 		cfg.Set(host, entry)
 	}
-	log.Debug("Loaded %q", fname)
+	log.Debug("Loaded %q (entries: %d)", fname, cfg.Length())
 	return
 }
 

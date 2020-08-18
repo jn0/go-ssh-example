@@ -77,6 +77,18 @@ type SshConfigFile struct {
 	globs map[string]glob.Glob           // possible wildcards handling
 }
 
+func (self *SshConfigFile) Length() int {
+	if self == nil {
+		return 0
+	}
+	return len(self.hosts)
+}
+func (self *SshConfigFile) Append(other *SshConfigFile) *SshConfigFile {
+	for _, host := range other.hosts {
+		self.Set(host, other.entry[host])
+	}
+	return self
+}
 func (self *SshConfigFile) Get(host, sect, dflt string) string {
 	res := dflt
 	x, h := self.get(host)
