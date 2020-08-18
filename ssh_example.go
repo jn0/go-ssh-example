@@ -111,25 +111,25 @@ func save_output(context *Context, command, out string) {
 
 func run(wg *sync.WaitGroup, context *Context, job *Job) {
 	log.Info("[%d] @%q: %q", context.Id, context.Host, job.Command)
+
 	t1 := time.Now()
 	out, err := context.Run(job.Command)
 	t2 := time.Now()
-	e := Config.Color.Green("ok")
-	ok := true
-	f := log.Info
+
+	f, e, ok := log.Info, Config.Color.BrightGreen("ok").String(), true
 	if ok && err != nil {
-		e = Config.Color.Red(err.Error())
-		f = log.Warn
-		ok = false
+		f, e, ok = log.Warn, err.Error(), false
 	}
+
 	dt := t2.Sub(t1)
 	elapse(context.Id, dt, err)
+
 	if ok && !job.Check(out) {
-		e = Config.Color.BrightYellow("output check failed")
-		f = log.Warn
-		ok = false
+		f, e, ok = log.Warn, "output check failed", false
 	}
+
 	f("[%d] @%q: %v, %s", context.Id, context.Host, e, dt)
+
 	save_output(context, job.Command, out)
 	if !ok {
 		show_output(context.Id, context.Host, out)
@@ -221,6 +221,7 @@ func main() {
 	defer log.Debug("Done")
 
 	Config.Color = aurora.NewAurora(IsAtty(os.Stdout) && !Config.NoColor)
+	log.UseColor(Config.Color)
 
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
 	log.UsePanic(Config.UsePanic)
