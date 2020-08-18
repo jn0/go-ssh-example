@@ -168,6 +168,9 @@ func main() {
 	flag.StringVar(&Config.DefaultDir, "dir", Config.DefaultDir,
 		"default directory for yaml scripts")
 	flag.BoolVar(&Config.ListDir, "list", false, "list the <dir> or its entry")
+	flag.BoolVar(&Config.ListDir, "ls", false, "short for --list")
+	flag.BoolVar(&Config.ListDir, "cat", false, "short for --list")
+	flag.BoolVar(&Config.ListDir, "l", false, "short for --list")
 
 	flag.BoolVar(&Config.UsePanic, "log-panic", false, "use panic() for fatals")
 	flag.StringVar(&Config.LogLevel, "log-level", "INFO", "log level")
@@ -175,8 +178,12 @@ func main() {
 
 	flag.StringVar(&Config.SaveDir, "save", Config.SaveDir, "directory to save output to")
 	flag.BoolVar(&Config.Edit, "edit", false, "run editor on the yaml")
+	flag.BoolVar(&Config.Edit, "vi", false, "short for --edit")
+	flag.BoolVar(&Config.Edit, "e", false, "short for --edit")
 	flag.StringVar(&Config.Copy, "copy", "", "create a new yaml from this one")
+	flag.StringVar(&Config.Copy, "cp", "", "short for --copy")
 	flag.BoolVar(&Config.Create, "create", false, "create a new yaml")
+	flag.BoolVar(&Config.Create, "c", false, " short for --create")
 
 	flag.Parse()
 	defer log.Debug("Done")
