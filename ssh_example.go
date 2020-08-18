@@ -46,6 +46,8 @@ var Config struct {
 	UsePanic   bool
 	NoColor    bool
 	Edit       bool
+	Copy       string
+	Create     bool
 	//
 	Color                                                                         aurora.Aurora
 	ErrorColor, FileColor, TitleColor, OkColor, CommentColor, NameColor, DivColor func(s string) string
@@ -173,6 +175,8 @@ func main() {
 
 	flag.StringVar(&Config.SaveDir, "save", Config.SaveDir, "directory to save output to")
 	flag.BoolVar(&Config.Edit, "edit", false, "run editor on the yaml")
+	flag.StringVar(&Config.Copy, "copy", "", "create a new yaml from this one")
+	flag.BoolVar(&Config.Create, "create", false, "create a new yaml")
 
 	flag.Parse()
 	defer log.Debug("Done")
@@ -192,29 +196,47 @@ func main() {
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
 	log.UsePanic(Config.UsePanic)
 
+	if Config.Create {
+		if flag.NArg() == 0 {
+			log.Fatal("What do you want to create?")
+		}
+		DirCreate(Config.DefaultDir)
+		for _, arg := range flag.Args() {
+			yaml := YamlFile(arg, Config.DefaultDir)
+			if yaml != "" {
+				log.Warn("File %q already exists", yaml)
+				continue
+			}
+			CreateYaml(NewYamlFileName(arg, Config.DefaultDir))
+		}
+		if !Config.Edit {
+			return
+		}
+	}
+	if Config.Copy != "" {
+		if flag.NArg() == 0 {
+			log.Fatal("Where to copy the %q to?", Config.Copy)
+		}
+		source := YamlFile(Config.Copy, Config.DefaultDir)
+		if source == "" {
+			log.Fatal("No source file %q", Config.Copy)
+		}
+		for _, arg := range flag.Args() {
+			CopyYaml(NewYamlFileName(arg, Config.DefaultDir), source)
+		}
+		if !Config.Edit {
+			return
+		}
+	}
 	if Config.Edit {
 		if flag.NArg() == 0 {
-			if !DirExists(Config.DefaultDir) {
-				err := os.MkdirAll(Config.DefaultDir, 0750)
-				if err != nil {
-					log.Fatal("Cannot make directory %q: %v",
-						Config.DefaultDir, err)
-				}
-				log.Info("The %q has been created", Config.DefaultDir)
-			}
+			DirCreate(Config.DefaultDir)
 			Edit(Config.DefaultDir)
 		} else {
 			for _, arg := range flag.Args() {
 				yaml := YamlFile(arg, Config.DefaultDir)
 				if yaml == "" {
-					if !DirExists(Config.DefaultDir) {
-						err := os.MkdirAll(Config.DefaultDir, 0750)
-						if err != nil {
-							log.Fatal("Cannot make directory %q: %v",
-								Config.DefaultDir, err)
-						}
-						log.Info("The %q has been created", Config.DefaultDir)
-					}
+					DirCreate(Config.DefaultDir)
 					yaml = filepath.Join(Config.DefaultDir, arg)
 					if !strings.HasSuffix(yaml, ".yaml") {
 						yaml += ".yaml"

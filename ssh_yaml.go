@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -106,6 +107,41 @@ func DirExists(name string) bool {
 	return err == nil && fi.IsDir()
 }
 
+func DirCreate(name string) {
+	if !DirExists(name) {
+		err := os.MkdirAll(name, 0750)
+		if err != nil {
+			log.Fatal("Cannot make directory %q: %v", name, err)
+		}
+		log.Info("The %q has been created", name)
+	}
+}
+
+func CreateYaml(name string) {
+	title := strings.Title(
+		strings.Replace(
+			strings.TrimSuffix(filepath.Base(name), ".yaml"),
+			"_", " ", -1))
+	text := "## sample JOB FILE " + name + " template #\n"
+	text += "#title: " + title + "\n"
+	text += "#before: /bin/true\n"
+	text += "#command: /bin/false\n"
+	text += "#after: /bin/true\n"
+	text += "#tty: false\n"
+	text += "#user: <current user>\n"
+	text += "#check: <text to search for>\n"
+	text += "#domain: <domain name to append to hostnames>\n"
+	text += "#hosts:\n"
+	text += "#    - host1\n"
+	text += "#    - host2\n"
+	text += "#    - host3\n"
+	text += "## EOF " + name + " #\n"
+	err := ioutil.WriteFile(name, []byte(text), 0640)
+	if err != nil {
+		log.Fatal("Cannot create %q: %v", name, err)
+	}
+}
+
 func FileExists(name string) bool {
 	fi, err := os.Stat(name)
 	return err == nil && !fi.IsDir()
@@ -122,6 +158,46 @@ func ListYaml(dir string, show func(string, string)) {
 		}
 		return nil
 	})
+}
+
+func CopyYaml(dst, src string) {
+	sf, err := os.Stat(src)
+	if err != nil {
+		log.Fatal("Copy: cannot stat %q: %v", src, err)
+	}
+	if !sf.Mode().IsRegular() {
+		log.Fatal("Copy: source %q is not a regular file (%s)", src, sf.Mode())
+	}
+	if FileExists(dst) {
+		log.Fatal("Copy: target file %q exists", dst)
+	}
+	fs, err := os.Open(src)
+	if err != nil {
+		log.Fatal("Copy: cannot open %q: %v", src, err)
+	}
+	defer fs.Close()
+	fd, err := os.Create(dst)
+	if err != nil {
+		log.Fatal("Copy: cannot create %q: %v", dst, err)
+	}
+	defer fd.Close()
+	written, err := io.Copy(fd, fs)
+	if err != nil {
+		log.Fatal("Copy: cannot copy %q to %q: %v", src, dst, err)
+	}
+	err = os.Chmod(dst, 0640)
+	if err != nil {
+		log.Fatal("Copy: cannot chmod %q: %v", dst, err)
+	}
+	log.Debug("Copy(%q -> %q): %v bytes", src, dst, written)
+}
+
+func NewYamlFileName(name, deflt string) string {
+	yaml := filepath.Join(deflt, name)
+	if !strings.HasSuffix(yaml, ".yaml") {
+		yaml += ".yaml"
+	}
+	return yaml
 }
 
 func YamlFile(name, deflt string) string {
