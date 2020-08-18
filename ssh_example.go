@@ -212,7 +212,7 @@ func main() {
 
 	flag.BoolVar(&Config.UsePanic, "log-panic", false, "use panic() for fatals")
 	flag.StringVar(&Config.LogLevel, "log-level", "INFO", "log level")
-	flag.BoolVar(&Config.NoColor, "log-Config.Color", false, "disable log colors")
+	flag.BoolVar(&Config.NoColor, "log-no-color", false, "disable log colors")
 
 	flag.StringVar(&Config.SaveDir, "save", Config.SaveDir, "directory to save output to")
 	flag.BoolVar(&Config.Edit, "edit", false, "run editor on the yaml")
