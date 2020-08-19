@@ -21,6 +21,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -39,15 +40,16 @@ import (
 var log = logging.Root
 
 var Config struct {
-	LogLevel   string
-	DefaultDir string
-	SaveDir    string
-	ListDir    bool
-	UsePanic   bool
-	NoColor    bool
-	Edit       bool
-	Copy       string
-	Create     bool
+	LogLevel    string
+	DefaultDir  string
+	SaveDir     string
+	MakeSaveDir bool
+	ListDir     bool
+	UsePanic    bool
+	NoColor     bool
+	Edit        bool
+	Copy        string
+	Create      bool
 	//
 	Color                                                                         aurora.Aurora
 	ErrorColor, FileColor, TitleColor, OkColor, CommentColor, NameColor, DivColor func(s string) string
@@ -157,37 +159,7 @@ func bash(args ...string) error {
 	return nil
 }
 
-func main() {
-	var err error
-	Config.DefaultDir, err = os.UserConfigDir()
-	if err != nil {
-		Config.DefaultDir = filepath.Join("/etc", filepath.Base(os.Args[0])+".d")
-	} else {
-		Config.DefaultDir = filepath.Join(Config.DefaultDir, filepath.Base(os.Args[0])+".d")
-	}
-	flag.StringVar(&Config.DefaultDir, "dir", Config.DefaultDir,
-		"default directory for yaml scripts")
-	flag.BoolVar(&Config.ListDir, "list", false, "list the <dir> or its entry")
-	flag.BoolVar(&Config.ListDir, "ls", false, "short for --list")
-	flag.BoolVar(&Config.ListDir, "cat", false, "short for --list")
-	flag.BoolVar(&Config.ListDir, "l", false, "short for --list")
-
-	flag.BoolVar(&Config.UsePanic, "log-panic", false, "use panic() for fatals")
-	flag.StringVar(&Config.LogLevel, "log-level", "INFO", "log level")
-	flag.BoolVar(&Config.NoColor, "log-no-color", false, "disable log colors")
-
-	flag.StringVar(&Config.SaveDir, "save", Config.SaveDir, "directory to save output to")
-	flag.BoolVar(&Config.Edit, "edit", false, "run editor on the yaml")
-	flag.BoolVar(&Config.Edit, "vi", false, "short for --edit")
-	flag.BoolVar(&Config.Edit, "e", false, "short for --edit")
-	flag.StringVar(&Config.Copy, "copy", "", "create a new yaml from this one")
-	flag.StringVar(&Config.Copy, "cp", "", "short for --copy")
-	flag.BoolVar(&Config.Create, "create", false, "create a new yaml")
-	flag.BoolVar(&Config.Create, "c", false, " short for --create")
-
-	flag.Parse()
-	defer log.Debug("Done")
-
+func SetColorConfig() {
 	Config.Color = aurora.NewAurora(IsAtty(os.Stdout) && !Config.NoColor)
 	log.UseColor(Config.Color)
 	Config.ErrorColor = func(s string) string {
@@ -199,16 +171,95 @@ func main() {
 	Config.CommentColor = func(s string) string { return Config.Color.Cyan(s).String() }
 	Config.NameColor = func(s string) string { return Config.Color.BrightYellow(s).String() }
 	Config.DivColor = func(s string) string { return Config.Color.Red(s).String() }
+}
 
+func LocalConfig() *flag.FlagSet {
+	basename := filepath.Base(os.Args[0])
+
+	ConfigFile := filepath.Join("/etc", basename+".conf")
+	ConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		Config.DefaultDir = filepath.Join("/etc", basename+".d")
+	} else {
+		ConfigFile = filepath.Join(ConfigDir, basename+".conf")
+		Config.DefaultDir = filepath.Join(ConfigDir, basename+".d")
+	}
+	Config.LogLevel = "INFO"
+
+	flags := flag.NewFlagSet(basename, flag.ExitOnError)
+
+	// flags.StringVar(&ConfigFile, "config", ConfigFile, "configuration file")
+	flags.StringVar(&Config.DefaultDir, "dir", Config.DefaultDir,
+		"default directory for yaml scripts")
+
+	flags.BoolVar(&Config.ListDir, "list", Config.ListDir, "list the <dir> or its entry")
+	flags.BoolVar(&Config.ListDir, "ls", Config.ListDir, "short for --list")
+	flags.BoolVar(&Config.ListDir, "cat", Config.ListDir, "short for --list")
+	flags.BoolVar(&Config.ListDir, "l", Config.ListDir, "short for --list")
+
+	flags.BoolVar(&Config.UsePanic, "log-panic", Config.UsePanic, "use panic() for fatals")
+	flags.StringVar(&Config.LogLevel, "log-level", Config.LogLevel, "log level")
+	flags.BoolVar(&Config.NoColor, "log-no-color", Config.NoColor, "disable log colors")
+
+	flags.StringVar(&Config.SaveDir, "save", Config.SaveDir, "directory to save output to")
+	flags.BoolVar(&Config.MakeSaveDir, "create-save-dir", Config.MakeSaveDir, "create <save> if needed")
+
+	flags.BoolVar(&Config.Edit, "edit", Config.Edit, "run editor on the yaml")
+	flags.BoolVar(&Config.Edit, "vi", Config.Edit, "short for --edit")
+	flags.BoolVar(&Config.Edit, "e", Config.Edit, "short for --edit")
+
+	flags.StringVar(&Config.Copy, "copy", Config.Copy, "create a new yaml from this one")
+	flags.StringVar(&Config.Copy, "cp", Config.Copy, "short for --copy")
+
+	flags.BoolVar(&Config.Create, "create", Config.Create, "create a new yaml")
+	flags.BoolVar(&Config.Create, "c", Config.Create, " short for --create")
+
+	if FileExists(ConfigFile) {
+		// log.Say("Reading %q...", ConfigFile)
+		bytes, err := ioutil.ReadFile(ConfigFile)
+		if err != nil && err != io.EOF {
+			log.Fatal("Cannot read %q: %v", ConfigFile, err)
+		}
+		flags.Parse(func(s string) (res []string) {
+			for _, line := range strings.Split(s, "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				for i, word := range strings.Fields(line) {
+					if i == 0 {
+						word = "--" + word
+					}
+					res = append(res, word)
+				}
+			}
+			return
+		}(string(bytes)))
+		log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
+		log.Debug("Configured from %q", ConfigFile)
+	} else {
+		// log.Say("No config %q", ConfigFile)
+	}
+
+	flags.Parse(os.Args[1:])
 	log.SetLevel(logging.LogLevelByName(strings.ToUpper(Config.LogLevel)))
+
 	log.UsePanic(Config.UsePanic)
 
+	return flags
+}
+
+func main() {
+	flags := LocalConfig()
+	defer log.Debug("Done")
+	SetColorConfig()
+
 	if Config.Create {
-		if flag.NArg() == 0 {
+		if flags.NArg() == 0 {
 			log.Fatal("What do you want to create?")
 		}
 		DirCreate(Config.DefaultDir)
-		for _, arg := range flag.Args() {
+		for _, arg := range flags.Args() {
 			yaml := YamlFile(arg, Config.DefaultDir)
 			if yaml != "" {
 				log.Warn("File %q already exists", yaml)
@@ -221,14 +272,14 @@ func main() {
 		}
 	}
 	if Config.Copy != "" {
-		if flag.NArg() == 0 {
+		if flags.NArg() == 0 {
 			log.Fatal("Where to copy the %q to?", Config.Copy)
 		}
 		source := YamlFile(Config.Copy, Config.DefaultDir)
 		if source == "" {
 			log.Fatal("No source file %q", Config.Copy)
 		}
-		for _, arg := range flag.Args() {
+		for _, arg := range flags.Args() {
 			CopyYaml(NewYamlFileName(arg, Config.DefaultDir), source)
 		}
 		if !Config.Edit {
@@ -236,11 +287,11 @@ func main() {
 		}
 	}
 	if Config.Edit {
-		if flag.NArg() == 0 {
+		if flags.NArg() == 0 {
 			DirCreate(Config.DefaultDir)
 			Edit(Config.DefaultDir)
 		} else {
-			for _, arg := range flag.Args() {
+			for _, arg := range flags.Args() {
 				yaml := YamlFile(arg, Config.DefaultDir)
 				if yaml == "" {
 					DirCreate(Config.DefaultDir)
@@ -255,7 +306,7 @@ func main() {
 		return
 	}
 
-	if flag.NArg() == 0 {
+	if flags.NArg() == 0 {
 		ListYaml(Config.DefaultDir, func(pth, title string) {
 			file := strings.TrimSuffix(path.Base(pth), ".yaml")
 			os.Stdout.Write([]byte(Config.FileColor(file) +
@@ -264,7 +315,7 @@ func main() {
 		return
 	}
 	if Config.ListDir {
-		for _, arg := range flag.Args() {
+		for _, arg := range flags.Args() {
 			job, err := LoadYaml(arg, Config.DefaultDir)
 			if err != nil {
 				os.Stderr.Write([]byte(Config.ErrorColor(arg+": "+err.Error()) + "\n"))
@@ -278,7 +329,11 @@ func main() {
 	}
 
 	if Config.SaveDir != "" && !DirExists(Config.SaveDir) {
-		log.Fatal("Cannot save to %q: it does not exist", Config.SaveDir)
+		if Config.MakeSaveDir {
+			DirCreate(Config.SaveDir)
+		} else {
+			log.Fatal("Cannot save to %q: it does not exist", Config.SaveDir)
+		}
 	}
 
 	var do_the_job = func(task *int, job *Job, wg *sync.WaitGroup) {
@@ -323,7 +378,7 @@ func main() {
 	result = make(map[int]error)
 	wg := sync.WaitGroup{}
 	t1 := time.Now()
-	for _, arg := range flag.Args() {
+	for _, arg := range flags.Args() {
 		job, err := LoadYaml(arg, Config.DefaultDir)
 		if err != nil {
 			log.Error("Cannot read %q: %v", arg, err)
